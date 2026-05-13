@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+*.swp
+
+# Envs
+.venv/
+venv/
+.env
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Local artifacts
+checkpoints/
+logs/
+results/
+data_cache/
+*.log
+hf_cache/
+.huggingface/
+
+# Generated / cached evals
+*.jsonl
+
+# Wandb
+wandb/
+
+# Pytest
+.pytest_cache/

@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arch_policy"
+version = "0.1.0"
+description = "Architecture Policy Optimization: learn task-conditioned distributions over multi-agent LLM architectures."
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+keywords = ["multi-agent", "LLM", "RL", "GRPO", "architecture search"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "torch>=2.3,<2.7",
+    "transformers>=4.51,<4.55",
+    "accelerate>=0.34",
+    "safetensors>=0.4.5",
+    "huggingface-hub>=0.25",
+    "tokenizers>=0.21",
+    "sentencepiece",
+    "einops",
+    "numpy>=1.26,<2.3",
+    "openai>=1.30",
+    "sympy>=1.12",
+    "datasets>=3.0",
+    "pyyaml",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7",
+    "ruff>=0.4",
+]
+wandb = ["wandb>=0.17"]
+
+[project.urls]
+Repository = "https://github.com/zhizhengzhao/APO"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

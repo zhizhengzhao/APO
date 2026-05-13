@@ -1,0 +1,49 @@
+# Default config snapshot — kept in sync with arch_policy.config dataclasses.
+# Override via CLI flags on the runner scripts.
+#
+# v3 design:
+#   - 7 roles (Planner / Solver / Critic / Verifier / Refiner / Researcher / ToolUser)
+#   - sequence = priority score per slot (Plackett-Luce, length = #active)
+#   - dynamic stopping via Synth (no fixed k_repeat_max exposed to head)
+#   - DeepSeek API as worker (head is the only thing trained)
+
+architecture:
+  n_max: 6
+  k_roles: 7
+  d_latent: 32
+  role_names: [Planner, Solver, Critic, Verifier, Refiner, Researcher, ToolUser]
+  # Engineering safety caps (NOT learned). Reward cost terms teach the system
+  # to stop early; these just prevent runaway loops if Synth is misbehaving.
+  safety_max_big_rounds: 20
+  safety_max_inner_rounds: 8
+  safety_max_tokens_per_call: 2048
+
+models:
+  head: "Qwen/Qwen3-0.6B"
+  head_dtype: bfloat16
+  worker_model: "deepseek-chat"          # OpenAI-compatible API
+  worker_base_url: "https://api.deepseek.com/v1"
+
+train:
+  sft:
+    epochs: 5
+    lr: 5.0e-5
+    batch_size: 8
+    grad_accum: 2
+    save_every_n_steps: 50
+    # Per-typed loss weights
+    w_gate: 1.0
+    w_role: 1.0
+    w_edge: 1.0
+    w_seq: 1.0
+  grpo:
+    group_size: 4
+    lr: 1.0e-5
+    batch_size: 4
+    entropy_weight: 0.01     # NO KL term in v3 (head is fresh policy planner)
+    clip_eps: 0.2
+  reward:
+    lambda_agent: 0.03
+    lambda_edge: 0.005
+    lambda_call: 0.01
+    lambda_token: 0.0        # off by default; enable for token-cost ablation

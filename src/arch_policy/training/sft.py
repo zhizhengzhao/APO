@@ -1,0 +1,321 @@
+"""SFT trainer for the architecture head (v3 typed losses).
+
+Loss decomposition::
+
+    L = w_g · L_gate  +  w_Q · L_role  +  w_e · L_edge  +  w_s · L_seq
+
+  L_gate  = BCE on all N slots                    (target.gates ∈ {0,1})
+  L_role  = CE on active slots only                (target.roles ∈ {0..R-1})
+  L_edge  = BCE on active (i,j) pairs (no diag)    (target.edges ∈ {0,1})
+  L_seq   = Plackett-Luce NLL on the teacher perm  (target.seq, length=K)
+
+Note: there is NO KL term in v3 (the head is a fresh policy planner, not a
+language model that needs language-prior protection). Sigma collapse is not
+an issue here either, since each typed distribution is parameterized by its
+own logits — no shared (mu, sigma) Gaussian.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import time
+from dataclasses import asdict
+from pathlib import Path
+from typing import Sequence
+
+import torch
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
+
+from ..architecture.sampler import log_prob_pl
+from ..architecture.spec import ArchLogits, ArchTargets, active_pair_mask
+from ..config import TRAIN, TrainSpec
+from ..head.model import ArchitectureHead
+
+
+# ---------------------------------------------------------------------------
+# Per-architecture typed loss
+# ---------------------------------------------------------------------------
+
+def sft_loss_single(
+    logits: ArchLogits,
+    target: ArchTargets,
+    spec: TrainSpec | None = None,
+) -> dict[str, torch.Tensor]:
+    """Compute typed losses for one architecture.
+
+    Returns a dict with components and `total`. All components are
+    *averaged* per-element so they're roughly comparable in scale.
+    """
+    if spec is None:
+        spec = TRAIN
+
+    active = target.gates.bool()
+    target_gates_f = target.gates.float()
+
+    # ---- gate: BCE over all N slots ----------------------------------------
+    gate_loss = F.binary_cross_entropy_with_logits(
+        logits.gate_logits, target_gates_f, reduction="mean"
+    )
+
+    # ---- role: CE over active slots only -----------------------------------
+    if active.any():
+        role_loss = F.cross_entropy(
+            logits.role_logits[active], target.roles[active], reduction="mean"
+        )
+    else:
+        role_loss = torch.zeros((), device=logits.gate_logits.device)
+
+    # ---- edge: BCE over active (i,j) pairs (no diag) -----------------------
+    pair = active_pair_mask(active)
+    if pair.any():
+        edge_loss = F.binary_cross_entropy_with_logits(
+            logits.edge_logits[pair],
+            target.edges[pair].float(),
+            reduction="mean",
+        )
+    else:
+        edge_loss = torch.zeros((), device=logits.gate_logits.device)
+
+    # ---- seq: Plackett-Luce NLL, normalized by sequence length -------------
+    if target.seq.numel() > 0:
+        seq_loss = -log_prob_pl(logits.seq_scores, target.seq) / target.seq.numel()
+    else:
+        seq_loss = torch.zeros((), device=logits.gate_logits.device)
+
+    total = (
+        spec.sft_w_gate * gate_loss
+        + spec.sft_w_role * role_loss
+        + spec.sft_w_edge * edge_loss
+        + spec.sft_w_seq * seq_loss
+    )
+    return {
+        "gate": gate_loss,
+        "role": role_loss,
+        "edge": edge_loss,
+        "seq": seq_loss,
+        "total": total,
+    }
+
+
+def sft_loss_batch(
+    head_out: dict[str, torch.Tensor],
+    targets: Sequence[ArchTargets],
+    spec: TrainSpec | None = None,
+) -> dict[str, torch.Tensor]:
+    """Mean of `sft_loss_single` over the batch (variable-K is per-sample).
+
+    `head_out` is the dict returned by `ArchitectureHead.forward`, with a
+    leading [B, ...] dim.
+    """
+    B = head_out["gate_logits"].shape[0]
+    if len(targets) != B:
+        raise ValueError(f"len(targets)={len(targets)} != batch size {B}")
+
+    accum = {"gate": [], "role": [], "edge": [], "seq": [], "total": []}
+    for b in range(B):
+        logits = ArchLogits(
+            gate_logits=head_out["gate_logits"][b],
+            role_logits=head_out["role_logits"][b],
+            edge_logits=head_out["edge_logits"][b],
+            seq_scores=head_out["seq_scores"][b],
+        )
+        # move target to head device
+        device = head_out["gate_logits"].device
+        target = ArchTargets(
+            gates=targets[b].gates.to(device),
+            roles=targets[b].roles.to(device),
+            edges=targets[b].edges.to(device),
+            seq=targets[b].seq.to(device),
+        )
+        comp = sft_loss_single(logits, target, spec)
+        for k, v in comp.items():
+            accum[k].append(v)
+
+    return {k: torch.stack(v).mean() for k, v in accum.items()}
+
+
+# ---------------------------------------------------------------------------
+# Checkpointing
+# ---------------------------------------------------------------------------
+
+def _ensure_dir(p: str | os.PathLike) -> Path:
+    p = Path(p)
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def save_head_checkpoint(model: ArchitectureHead, ckpt_dir: str | os.PathLike, tag: str) -> Path:
+    out = _ensure_dir(ckpt_dir) / f"head_{tag}"
+    out.mkdir(parents=True, exist_ok=True)
+    state = {
+        "head_state_dict": {
+            k: v.detach().cpu()
+            for k, v in model.state_dict().items()
+            if not k.startswith("backbone.")
+        },
+        "head_cfg": asdict(model.head_cfg),
+        "arch_spec": asdict(model.arch_spec),
+        "backbone_name": model.backbone_name,
+    }
+    torch.save(state, out / "head.pt")
+    with open(out / "meta.json", "w") as f:
+        json.dump({
+            "backbone_name": model.backbone_name,
+            "arch_spec": asdict(model.arch_spec),
+            "head_cfg": asdict(model.head_cfg),
+        }, f, indent=2)
+    return out
+
+
+def load_head_checkpoint(model: ArchitectureHead, ckpt_dir: str | os.PathLike) -> None:
+    state = torch.load(Path(ckpt_dir) / "head.pt", map_location="cpu", weights_only=False)
+    missing, unexpected = model.load_state_dict(state["head_state_dict"], strict=False)
+    head_missing = [k for k in missing if not k.startswith("backbone.")]
+    if head_missing:
+        raise RuntimeError(f"missing head keys when loading checkpoint: {head_missing}")
+    if unexpected:
+        raise RuntimeError(f"unexpected keys when loading checkpoint: {unexpected}")
+
+
+# ---------------------------------------------------------------------------
+# Training loop
+# ---------------------------------------------------------------------------
+
+def train_sft(
+    model: ArchitectureHead,
+    train_loader: DataLoader,
+    spec: TrainSpec | None = None,
+    out_dir: str | os.PathLike = "checkpoints/sft",
+    log_every: int = 5,
+    eval_loader: DataLoader | None = None,
+    device: str | None = None,
+    wandb_run=None,
+) -> dict:
+    """Train the head on (task, target) pairs.
+
+    Each batch dict from the loader must have keys:
+        input_ids, attention_mask         — for the head's forward
+        targets: list[ArchTargets]        — typed teacher targets
+    """
+    if spec is None:
+        spec = TRAIN
+    out_dir = _ensure_dir(out_dir)
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    model.to(device)
+
+    optim = torch.optim.AdamW(
+        [p for p in model.parameters() if p.requires_grad],
+        lr=spec.sft_lr,
+    )
+
+    history: list[dict] = []
+    best_eval_loss: float | None = None
+    step = 0
+    t0 = time.time()
+
+    for epoch in range(spec.sft_epochs):
+        if hasattr(train_loader.dataset, "reshuffle"):
+            train_loader.dataset.reshuffle()  # type: ignore[attr-defined]
+
+        for batch in train_loader:
+            input_ids = batch["input_ids"].to(device)
+            attn = batch["attention_mask"].to(device)
+            targets = batch["targets"]
+
+            head_out = model(input_ids=input_ids, attention_mask=attn)
+            comp = sft_loss_batch(head_out, targets, spec)
+            loss = comp["total"] / spec.sft_grad_accum
+
+            loss.backward()
+            if (step + 1) % spec.sft_grad_accum == 0:
+                torch.nn.utils.clip_grad_norm_(
+                    [p for p in model.parameters() if p.requires_grad],
+                    max_norm=1.0,
+                )
+                optim.step()
+                optim.zero_grad(set_to_none=True)
+
+            if step % log_every == 0:
+                rec = {
+                    "step": step,
+                    "epoch": epoch,
+                    "loss": float(comp["total"].detach().item()),
+                    "loss_gate": float(comp["gate"].detach().item()),
+                    "loss_role": float(comp["role"].detach().item()),
+                    "loss_edge": float(comp["edge"].detach().item()),
+                    "loss_seq": float(comp["seq"].detach().item()),
+                    "elapsed": time.time() - t0,
+                }
+                history.append(rec)
+                print(
+                    f"[sft] step={step:>5} epoch={epoch} "
+                    f"L={rec['loss']:.3f} "
+                    f"g={rec['loss_gate']:.3f} r={rec['loss_role']:.3f} "
+                    f"e={rec['loss_edge']:.3f} s={rec['loss_seq']:.3f}"
+                )
+                if wandb_run is not None:
+                    wandb_run.log(rec, step=step)
+
+            if (step + 1) % spec.sft_save_every_n_steps == 0:
+                save_head_checkpoint(model, out_dir, tag=f"step{step + 1}")
+                print(f"[sft] saved intermediate checkpoint at step {step + 1}")
+
+            step += 1
+            if spec.sft_max_steps is not None and step >= spec.sft_max_steps:
+                save_head_checkpoint(model, out_dir, tag="final")
+                _write_history(out_dir, history)
+                return {"history": history, "final_step": step}
+
+        if eval_loader is not None:
+            eval_loss = evaluate_sft(model, eval_loader, spec, device=device)
+            print(f"[sft] epoch {epoch} eval_loss={eval_loss:.4f}")
+            history.append({"step": step, "epoch": epoch, "eval_loss": eval_loss})
+            if wandb_run is not None:
+                wandb_run.log({"eval_loss": eval_loss, "epoch": epoch}, step=step)
+            if best_eval_loss is None or eval_loss < best_eval_loss:
+                best_eval_loss = eval_loss
+                save_head_checkpoint(model, out_dir, tag="best_eval")
+
+        save_head_checkpoint(model, out_dir, tag=f"epoch{epoch}")
+
+    save_head_checkpoint(model, out_dir, tag="final")
+    _write_history(out_dir, history)
+    return {"history": history, "final_step": step}
+
+
+def evaluate_sft(
+    model: ArchitectureHead,
+    loader: DataLoader,
+    spec: TrainSpec,
+    device: str = "cuda",
+) -> float:
+    model.eval()
+    losses: list[float] = []
+    with torch.no_grad():
+        for batch in loader:
+            input_ids = batch["input_ids"].to(device)
+            attn = batch["attention_mask"].to(device)
+            targets = batch["targets"]
+            head_out = model(input_ids=input_ids, attention_mask=attn)
+            comp = sft_loss_batch(head_out, targets, spec)
+            losses.append(float(comp["total"].item()))
+    model.train()
+    return sum(losses) / max(1, len(losses))
+
+
+def _write_history(out_dir: Path, history: list[dict]) -> None:
+    with open(out_dir / "history.json", "w") as f:
+        json.dump(history, f, indent=2)
+
+
+__all__ = [
+    "evaluate_sft",
+    "load_head_checkpoint",
+    "save_head_checkpoint",
+    "sft_loss_batch",
+    "sft_loss_single",
+    "train_sft",
+]

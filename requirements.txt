@@ -1,0 +1,24 @@
+# Python 3.10+ recommended (3.11 tested).
+# transformers >=4.51 needed for Qwen3 support.
+
+# --- Core ML ---
+torch>=2.3,<2.7
+transformers>=4.51,<4.55
+accelerate>=0.34
+safetensors>=0.4.5
+huggingface-hub>=0.25
+tokenizers>=0.21
+sentencepiece
+einops
+numpy>=1.26,<2.3
+
+# --- Worker (OpenAI-compatible API; DeepSeek by default) ---
+openai>=1.30
+
+# --- Tools available to agents ---
+sympy>=1.12
+
+# --- Data + utils ---
+datasets>=3.0
+pyyaml
+tqdm
