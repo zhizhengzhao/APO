@@ -1,30 +1,30 @@
 """SFT dataset: pair each task with a randomly chosen `ArchTargets`.
 
 The user explicitly asked for *no* task→architecture bias: each task is
-paired with a uniformly-sampled architecture from the library. This makes
+paired with a randomly-sampled architecture from the library. This makes
 the head learn to "live in the manifold of reasonable architectures"
 without locking any particular task to a particular template.
 
 Two sampling modes (controlled by `stratify_by_family`):
 
-  - `stratify_by_family=False` (default, backward-compatible):
-        uniform over library entries. Simple but biased — high-variant
-        families like `fam_mad_debate` (4 entries) get sampled 4× more
-        often than 1-variant families like `fam_psv` (1 entry).
-
-  - `stratify_by_family=True`:
+  - `stratify_by_family=True` (DEFAULT, recommended):
         First sample a tier (canonical / imperfect / random) using the
         configured `tier_ratio`, then:
           * canonical: pick a family uniformly, then variant uniformly
           * imperfect / random: pick uniformly within tier
         This gives each canonical FAMILY equal weight (regardless of variant
         count), AND maintains the canonical/imperfect/random tier ratio.
-        Recommended for SFT.
 
         Default `tier_ratio = (0.73, 0.16, 0.11)` matches the library's
         natural composition (68 canonical / 15 imperfect / 10 random = 93).
         If you want to deliberately amplify imperfect (e.g. to thicken the
         manifold for GRPO), pass a custom tier_ratio explicitly.
+
+  - `stratify_by_family=False` (legacy, NOT recommended):
+        uniform over library entries. Biased — high-variant families like
+        `fam_mad_debate` (4 entries) get sampled 4× more often than 1-
+        variant families like `fam_psv` (1 entry). Kept for ablation /
+        backward compatibility only.
 
 Note: each `ArchTargets` has a variable-length `seq` (length = #active),
 so we can't stack into a single tensor. The collate function returns a
@@ -76,7 +76,7 @@ class SFTArchDataset(Dataset):
         tokenizer,
         max_len: int = 512,
         seed: int = 0,
-        stratify_by_family: bool = False,
+        stratify_by_family: bool = True,
         tier_ratio: tuple[float, float, float] = (0.73, 0.16, 0.11),
     ) -> None:
         if targets is None:

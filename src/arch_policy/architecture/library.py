@@ -39,16 +39,17 @@ Design notes (responding to adversarial review rounds 1-2):
 
   - Mesh + sequence: full_mesh edges combined with strict sequence ordering
     is consistent in the EXECUTOR's multi-cycle steady state. Cycle 1:
-    forward propagation along sequence. Cycle 2+: each agent sees the
-    LATEST message from every neighbor with an incoming edge, but note
-    that within one cycle the message is only updated when the speaker
-    takes its turn — so an agent speaking mid-cycle sees the previous-
-    cycle latest from agents whose turn hasn't arrived yet, not their
-    current-cycle in-progress reply. Caveat: if Synth says ANSWER on
-    cycle 1, the steady-state mesh doesn't fully realize. This is a
-    feature (cheap easy tasks terminate early), but architects relying
-    on full mesh propagation should verify their use case warrants
-    multiple cycles via reward shaping / Synth prompt design.
+    forward propagation along sequence. Cycle 2+: when an agent's turn
+    comes up, it reads the executor-maintained latest_message snapshot
+    of each in-edge neighbor — for neighbors whose own turn has already
+    fired in the current cycle, that snapshot is from the current cycle;
+    for neighbors whose turn hasn't fired yet, it is still from the prior
+    cycle. So "full mesh" is realized as a steady-state property over
+    cycles, not as instantaneous all-pairs visibility. Caveat: if Synth
+    says ANSWER on cycle 1, the multi-cycle steady state doesn't fully
+    realize. This is a feature (cheap easy tasks terminate early), but
+    architects relying on full mesh propagation should design reward /
+    Synth prompt to encourage at least two cycles when warranted.
 
   - Verifier-as-Judge in MAD-judge variants: Verifier's responsibility
     ("re-derive from scratch / use sympy / run python_exec") is
@@ -58,9 +59,14 @@ Design notes (responding to adversarial review rounds 1-2):
     appropriate pattern. The library does NOT condition NamedArch on
     task type — by design, we want the head to learn a task-INVARIANT
     architecture distribution at SFT time and let GRPO learn task-
-    conditional preferences. Some Verifier-as-Judge instances will be
-    sampled for subjective tasks; this is acceptable noise within the
-    "soft-edge" tier-2 spirit.
+    conditional preferences. Note that mad_*_judge entries themselves
+    sit in Tier 1 (canonical), so when a subjective task pulls one of
+    them, the resulting "Verifier-as-Judge on subjective task" sample is
+    canonical-tier mismatch noise — accepted as the cost of a task-
+    invariant SFT distribution; GRPO is expected to learn to suppress
+    Verifier-as-Judge for subjective tasks via the task-conditional
+    reward signal. This shares the soft-margin motivation that
+    motivates Tier 2, but is not exclusive to Tier 2.
 
   - imp_verifier_middle_4 vs canonical sv/scv (Verifier-as-tail) tension:
     deliberate. The point of tier 2 is to expose the head to slightly-
