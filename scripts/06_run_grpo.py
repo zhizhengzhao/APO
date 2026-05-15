@@ -55,9 +55,18 @@ def _build_worker(args):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--head_ckpt", required=True)
-    ap.add_argument("--head_model", default="Qwen/Qwen3-0.6B")
+    ap.add_argument("--head_model", default="Qwen/Qwen3.5-9B")
     ap.add_argument("--head_dtype", default="bfloat16", choices=["bfloat16", "float16", "float32"])
     ap.add_argument("--head_device", default="cuda" if torch.cuda.is_available() else "cpu")
+    ap.add_argument("--freeze_backbone", action=argparse.BooleanOptionalAction, default=False,
+                    help="If set, only typed heads are trained. "
+                         "Match the SFT-stage setting for correct ckpt loading.")
+    ap.add_argument("--lora_rank", type=int, default=0,
+                    help="LoRA rank. Match the SFT-stage setting.")
+    ap.add_argument("--lora_alpha", type=int, default=64)
+    ap.add_argument("--lora_dropout", type=float, default=0.05)
+    ap.add_argument("--gradient_checkpointing", action=argparse.BooleanOptionalAction,
+                    default=False)
 
     ap.add_argument("--dataset", default="gsm8k", choices=["synthetic", "gsm8k", "humaneval", "math"])
     ap.add_argument("--split", default="train")
@@ -111,15 +120,29 @@ def main() -> int:
 
     # --- Head ---
     tokenizer = load_tokenizer(args.head_model)
+    if args.lora_rank > 0:
+        mode_str = f"LoRA (rank={args.lora_rank})"
+    elif args.freeze_backbone:
+        mode_str = "frozen backbone (heads only)"
+    else:
+        mode_str = "full fine-tune"
+    print(f"[grpo] trainability mode: {mode_str}; gradient_checkpointing={args.gradient_checkpointing}")
     model = ArchitectureHead(
         backbone_name=args.head_model,
-        freeze_backbone=True,
+        freeze_backbone=args.freeze_backbone,
+        lora_rank=args.lora_rank,
+        lora_alpha=args.lora_alpha,
+        lora_dropout=args.lora_dropout,
+        gradient_checkpointing=args.gradient_checkpointing,
         torch_dtype=args.head_dtype if args.head_device.startswith("cuda") else "float32",
     )
     load_head_checkpoint(model, args.head_ckpt)
     model.to(args.head_device)
     model.train()
-    print(f"[grpo] head loaded from {args.head_ckpt}; trainable params = {model.trainable_parameters():,}")
+    n_trainable = model.trainable_parameters()
+    n_total = sum(p.numel() for p in model.parameters())
+    print(f"[grpo] head loaded from {args.head_ckpt}; trainable {n_trainable:,} / {n_total:,} "
+          f"({100 * n_trainable / max(1, n_total):.2f}%)")
 
     # --- TrainSpec override ---
     spec = replace(

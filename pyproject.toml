@@ -23,6 +23,7 @@ dependencies = [
     "torch>=2.3,<2.7",
     "transformers>=4.51,<4.55",
     "accelerate>=0.34",
+    "peft>=0.11",
     "safetensors>=0.4.5",
     "huggingface-hub>=0.25",
     "tokenizers>=0.21",

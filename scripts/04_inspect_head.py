@@ -28,10 +28,15 @@ from arch_policy.training.sft import load_head_checkpoint
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--ckpt", required=True)
-    ap.add_argument("--head_model", default="Qwen/Qwen3-0.6B")
+    ap.add_argument("--head_model", default="Qwen/Qwen3.5-9B")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--n_tasks", type=int, default=4)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--lora_rank", type=int, default=0,
+                    help="Match SFT setting if non-zero (else PEFT keys won't load).")
+    ap.add_argument("--freeze_backbone", action=argparse.BooleanOptionalAction, default=False)
+    ap.add_argument("--dtype", default="float32",
+                    help="bfloat16 / float32 — float32 safe for inspection on CPU.")
     args = ap.parse_args()
 
     seed_all(args.seed)
@@ -39,7 +44,10 @@ def main() -> int:
     tasks = load_local_synthetic(n_per_family=2, seed=args.seed)[: args.n_tasks]
     tok = load_tokenizer(args.head_model)
     model = ArchitectureHead(
-        backbone_name=args.head_model, freeze_backbone=True, torch_dtype="float32",
+        backbone_name=args.head_model,
+        freeze_backbone=args.freeze_backbone,
+        lora_rank=args.lora_rank,
+        torch_dtype=args.dtype,
     )
     print(f"[inspect] loading checkpoint {args.ckpt}")
     load_head_checkpoint(model, args.ckpt)

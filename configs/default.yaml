@@ -22,18 +22,22 @@ architecture:
   safety_max_tokens_per_call: 2048
 
 models:
-  head: "Qwen/Qwen3-0.6B"
+  head: "Qwen/Qwen3.5-9B"
   head_dtype: bfloat16
+  # Trainability mode (set via CLI flags on 03_run_sft.py):
+  #   default (full FT)         : freeze_backbone=False, lora_rank=0
+  #   recommended for 9B+ on a single 80GB card: lora_rank=32 (PEFT LoRA on q/k/v/o + MLP)
+  #   head-only baseline (V3)   : freeze_backbone=True
   worker_model: "deepseek-chat"          # OpenAI-compatible API
   worker_base_url: "https://api.deepseek.com/v1"
 
 train:
   sft:
-    epochs: 3                # warm-up only; intermediate ckpt is what we use
-    lr: 5.0e-5
+    epochs: 5                # one ckpt per epoch is always saved
+    lr: 1.0e-5               # conservative for full FT 9B; raise to 1e-4 for LoRA
     batch_size: 8
     grad_accum: 2
-    save_every_n_steps: 100
+    save_every_n_steps: 200  # extra mid-epoch ckpts (per-epoch is always written)
     label_smoothing: 0.05    # 0/1 → 0.05/0.95 for Bernoulli; analogous for Cat
     # Per-typed loss weights
     w_gate: 1.0

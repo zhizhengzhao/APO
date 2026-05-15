@@ -54,7 +54,9 @@ def parse_args() -> argparse.Namespace:
                     help="Per-source cap (ignored for `mixed` which uses DEFAULT_SFT_MIX).")
     ap.add_argument("--epochs", type=int, default=TRAIN.sft_epochs)
     ap.add_argument("--batch_size", type=int, default=TRAIN.sft_batch_size)
-    ap.add_argument("--lr", type=float, default=TRAIN.sft_lr)
+    ap.add_argument("--lr", type=float, default=None,
+                    help="Learning rate. If unset, picked automatically by mode: "
+                         "5e-5 (frozen backbone) / 1e-4 (LoRA) / 1e-5 (full FT).")
     ap.add_argument("--max_steps", type=int, default=None)
     ap.add_argument("--save_every", type=int, default=TRAIN.sft_save_every_n_steps)
     ap.add_argument("--head_model", default=MODEL.head_model)
@@ -64,6 +66,23 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--max_seq_len", type=int, default=512,
                     help="Max tokens for the head's tokenizer (TrainSpec.tokenizer_max_len)")
     ap.add_argument("--dtype", default="bfloat16", choices=["bfloat16", "float16", "float32"])
+
+    # ---- Trainability mode (V3.5) ------------------------------------------
+    ap.add_argument("--freeze_backbone", action=argparse.BooleanOptionalAction,
+                    default=False,
+                    help="If set, only the typed heads are trained (V3 behavior). "
+                         "Default OFF in V3.5: backbone is also trainable.")
+    ap.add_argument("--lora_rank", type=int, default=0,
+                    help="If > 0, wrap the backbone with PEFT LoRA at this rank "
+                         "(recommended for 9B+ on memory-constrained GPUs). "
+                         "Default 0 = no LoRA.")
+    ap.add_argument("--lora_alpha", type=int, default=64,
+                    help="LoRA scaling alpha (only used if --lora_rank > 0).")
+    ap.add_argument("--lora_dropout", type=float, default=0.05)
+    ap.add_argument("--gradient_checkpointing", action=argparse.BooleanOptionalAction,
+                    default=False,
+                    help="Trade compute for activation memory. ESSENTIAL for "
+                         "full FT 9B on a single 80GB card.")
     ap.add_argument("--stratify_by_family", action=argparse.BooleanOptionalAction,
                     default=True,
                     help="Pair each task with a family-stratified random NamedArch "
@@ -119,13 +138,27 @@ def main() -> int:
     print(f"[sft] vocab_size={len(tokenizer)}")
 
     print(f"[sft] loading head with backbone {args.head_model} (also downloads if needed) ...")
+    if args.lora_rank > 0:
+        mode_str = f"LoRA (rank={args.lora_rank}, alpha={args.lora_alpha})"
+    elif args.freeze_backbone:
+        mode_str = "frozen backbone (heads only)"
+    else:
+        mode_str = "full fine-tune"
+    print(f"[sft] trainability mode: {mode_str}; gradient_checkpointing={args.gradient_checkpointing}")
     model = ArchitectureHead(
         backbone_name=args.head_model,
         arch_spec=ARCH,
-        freeze_backbone=True,
+        freeze_backbone=args.freeze_backbone,
+        lora_rank=args.lora_rank,
+        lora_alpha=args.lora_alpha,
+        lora_dropout=args.lora_dropout,
+        gradient_checkpointing=args.gradient_checkpointing,
         torch_dtype=args.dtype if args.device.startswith("cuda") else "float32",
     )
-    print(f"[sft] trainable params = {model.trainable_parameters():,}")
+    n_trainable = model.trainable_parameters()
+    n_total = sum(p.numel() for p in model.parameters())
+    print(f"[sft] trainable params = {n_trainable:,} / {n_total:,} "
+          f"({100 * n_trainable / max(1, n_total):.2f}%)")
 
     tier_ratio_t = tuple(args.tier_ratio)
     ds = SFTArchDataset(
@@ -158,14 +191,25 @@ def main() -> int:
         num_workers=0,
     )
 
+    if args.lr is not None:
+        lr = args.lr
+    elif args.lora_rank > 0:
+        lr = 1e-4
+    elif args.freeze_backbone:
+        lr = 5e-5
+    else:
+        lr = 1e-5
+    print(f"[sft] LR = {lr:g}")
+
     from dataclasses import replace
     spec = replace(
         TRAIN,
         sft_epochs=args.epochs,
-        sft_lr=args.lr,
+        sft_lr=lr,
         sft_batch_size=args.batch_size,
         sft_save_every_n_steps=args.save_every,
         sft_max_steps=args.max_steps,
+        tokenizer_max_len=args.max_seq_len,
     )
 
     out = Path(args.out_dir)

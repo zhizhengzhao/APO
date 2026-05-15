@@ -24,8 +24,9 @@ def main() -> int:
         os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
     print(f"Using HF endpoint: {os.environ.get('HF_ENDPOINT')}")
 
-    head = os.environ.get("HEAD_MODEL", "Qwen/Qwen3-0.6B")
+    head = os.environ.get("HEAD_MODEL", "Qwen/Qwen3.5-9B")
     print(f"Downloading head backbone: {head}")
+    print("(Tip: set HEAD_MODEL=Qwen/Qwen3-0.6B for the lightweight smoke test.)")
 
     try:
         from huggingface_hub import snapshot_download

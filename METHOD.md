@@ -3,7 +3,7 @@
 ## 1. 整体
 
 ```
-task → head (Qwen3-0.6B + 4 typed heads) → 4 typed logits
+task → head (Qwen3.5-9B + 4 typed heads) → 4 typed logits
     → sample_arch → ConcreteArch
     → executor: PL-permutation 调度 + ReAct agents + Synth
     → reward
@@ -11,6 +11,8 @@ task → head (Qwen3-0.6B + 4 typed heads) → 4 typed logits
 ```
 
 只 head 训练。worker (agent + synth) 是 OpenAI-compatible API，不动。
+
+V3.5 起 head 默认全参数 trainable（backbone + 4 typed heads），可切 LoRA 或 freeze backbone — 见 §2 末尾。
 
 ---
 
@@ -38,7 +40,17 @@ Edge 用 latent + SBM 双源：
 - `Q^T B Q` = Stochastic Block Model (Holland'81), role 对的"该不该连"
 - 训练完后 **B 矩阵 (8×8) 可读**：直接 heatmap 看出 "Critic→Solver=0.9 / Solver→Solver=0.2"，是 paper 的可解释性卖点
 
-参数量 ~100K 可训练，backbone frozen。
+参数量 (typed heads + slot_emb + agent_proj + body MLP + M / B / b0)：~1M。
+
+### 2.1 三种 trainability mode
+
+| mode | flags | trainable params (Qwen3.5-9B) | 说明 |
+|---|---|---|---|
+| 全 FT (默认 V3.5) | `(默认)` | ~9B (backbone + heads) | 最强；80GB+gradient checkpointing 可装 |
+| LoRA (推荐) | `--lora_rank 32` | ~50M (LoRA on q/k/v/o + MLP + heads) | 24GB 卡可跑；适合 9B + 5K SFT samples 防 overfit |
+| frozen (V3 baseline) | `--freeze_backbone` | ~1M (heads only) | head-only ablation；与 backbone 大小无关 |
+
+LoRA 通过 `peft.LoraConfig` 包到 `q_proj/k_proj/v_proj/o_proj/gate_proj/up_proj/down_proj`，rank 默认 32, alpha 64, dropout 0.05。
 
 ---
 

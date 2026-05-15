@@ -1,8 +1,8 @@
-"""Architecture-policy head built on a small Qwen LM (v3 design).
+"""Architecture-policy head built on a Qwen LM (v3.5 — backbone trainable).
 
 Design (latent-agent-embedding + 4 typed heads):
 
-    backbone(task) → context ∈ R^{H}        (frozen Qwen3-0.6B last-token hidden)
+    backbone(task) → context ∈ R^{H}        (last-token hidden state)
                        ↓ MLP body
                      h ∈ R^{d_h}
                        ↓ agent_proj
@@ -19,6 +19,20 @@ Design (latent-agent-embedding + 4 typed heads):
     where Q = softmax(role_logits) is used for the SBM term.
 
 The 4 heads share the agent embedding U — this is the key inductive bias.
+
+Trainability modes (controlled by `freeze_backbone` and `lora_rank` flags):
+
+  - freeze_backbone=True, lora_rank=0   : frozen backbone + trainable heads only
+                                          (lightest; ~1M trainable params; was V3 default)
+  - freeze_backbone=False, lora_rank=0  : full fine-tune (backbone + heads)
+                                          (DEFAULT in V3.5; needs gradient checkpointing
+                                          on a single 80GB card for 9B; consider LoRA)
+  - freeze_backbone=False, lora_rank>0  : LoRA fine-tune of backbone + full heads
+                                          (recommended for 9B+ on memory-constrained
+                                          GPUs; LoRA wraps q/k/v/o/mlp linear layers)
+
+Use `gradient_checkpointing=True` to trade compute for activation memory when
+the backbone is unfrozen (essential for 9B full FT on 80GB).
 """
 
 from __future__ import annotations
@@ -54,14 +68,24 @@ def _activation(name: str) -> nn.Module:
 
 
 class ArchitectureHead(nn.Module):
-    """Wraps a small causal LM and adds a 4-typed-head architecture policy.
+    """Wraps a causal LM and adds a 4-typed-head architecture policy.
 
     Args:
-        backbone_name: HF model id (e.g. "Qwen/Qwen3-0.6B").
+        backbone_name: HF model id (e.g. "Qwen/Qwen3.5-9B").
         arch_spec: dimension layout for the output tensors.
         head_cfg: head MLP config.
-        freeze_backbone: if True (default) backbone params do not receive grads.
-        torch_dtype: dtype for the backbone (head is always fp32 for stability).
+        freeze_backbone: if True the backbone receives no gradients (lightest).
+                         If False (DEFAULT in V3.5), backbone is trainable —
+                         either full FT or LoRA depending on `lora_rank`.
+        lora_rank: if > 0, wrap the backbone with PEFT LoRA at this rank
+                   (and ignore freeze_backbone — LoRA always adds trainable
+                   adapters on top of a frozen base). Recommended for 9B+ on
+                   memory-constrained GPUs.
+        lora_alpha: LoRA scaling (effective LR multiplier ≈ alpha/rank).
+        lora_dropout: LoRA dropout for regularization.
+        gradient_checkpointing: trade compute for activation memory; essential
+                                for full FT 9B on a single 80GB card.
+        torch_dtype: dtype for the backbone (head MLPs always fp32 for stability).
     """
 
     def __init__(
@@ -69,7 +93,11 @@ class ArchitectureHead(nn.Module):
         backbone_name: str = MODEL.head_model,
         arch_spec: ArchSpec | None = None,
         head_cfg: HeadConfig | None = None,
-        freeze_backbone: bool = True,
+        freeze_backbone: bool = False,
+        lora_rank: int = 0,
+        lora_alpha: int = 64,
+        lora_dropout: float = 0.05,
+        gradient_checkpointing: bool = False,
         torch_dtype: torch.dtype | str | None = None,
     ) -> None:
         super().__init__()
@@ -96,11 +124,66 @@ class ArchitectureHead(nn.Module):
             torch_dtype=torch_dtype_obj,
             trust_remote_code=True,
         )
-        if freeze_backbone:
+
+        # ---- Trainability mode ------------------------------------------------
+        # Three modes: (a) frozen backbone, (b) full FT, (c) LoRA on backbone.
+        # Heads (body / agent_proj / slot_emb / head_g / head_Q / head_S /
+        # M / B / b0) are ALWAYS fully trainable.
+        self._lora_rank = lora_rank
+        if lora_rank > 0:
+            try:
+                from peft import LoraConfig, get_peft_model, TaskType
+            except ImportError as e:
+                raise ImportError(
+                    "peft not installed. Run `pip install peft` (or use the "
+                    "project's requirements.txt)."
+                ) from e
+            # Cover the standard Qwen / Llama-style attention + MLP linears.
+            target_modules = [
+                "q_proj", "k_proj", "v_proj", "o_proj",
+                "gate_proj", "up_proj", "down_proj",
+            ]
+            lora_cfg = LoraConfig(
+                r=lora_rank,
+                lora_alpha=lora_alpha,
+                lora_dropout=lora_dropout,
+                bias="none",
+                target_modules=target_modules,
+                task_type=TaskType.FEATURE_EXTRACTION,
+            )
+            self.backbone = get_peft_model(self.backbone, lora_cfg)
+            # PEFT auto-freezes everything not LoRA, so backbone base is frozen
+            # and the LoRA adapters get gradients.
+            self._freeze_backbone = False  # LoRA layers are trainable
+        elif freeze_backbone:
             for p in self.backbone.parameters():
                 p.requires_grad = False
             self.backbone.eval()
-        self._freeze_backbone = freeze_backbone
+            self._freeze_backbone = True
+        else:
+            # Full fine-tune: leave backbone trainable.
+            self._freeze_backbone = False
+
+        # Gradient checkpointing must be enabled AFTER loading and BEFORE first
+        # forward; transformers' API also disables use_cache automatically.
+        self._gradient_checkpointing = gradient_checkpointing
+        if gradient_checkpointing and not freeze_backbone:
+            try:
+                # PEFT-wrapped models also expose this method.
+                if hasattr(self.backbone, "gradient_checkpointing_enable"):
+                    self.backbone.gradient_checkpointing_enable(
+                        gradient_checkpointing_kwargs={"use_reentrant": False},
+                    )
+                # Make sure use_cache is off (incompatible with checkpointing).
+                if hasattr(self.config, "use_cache"):
+                    self.config.use_cache = False
+                # Trainable params with checkpointing need .requires_grad_() on
+                # the backbone's input embeddings to propagate; transformers
+                # provides this helper:
+                if hasattr(self.backbone, "enable_input_require_grads"):
+                    self.backbone.enable_input_require_grads()
+            except Exception as e:
+                print(f"[head] gradient checkpointing setup warning: {e}")
 
         hidden = int(getattr(self.config, "hidden_size"))
         N = arch_spec.n_max
@@ -182,12 +265,18 @@ class ArchitectureHead(nn.Module):
         """
         ctx = torch.no_grad() if self._freeze_backbone else _NoOp()
         with ctx:
-            out = self.backbone(
+            backbone_out = self.backbone(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 output_hidden_states=False,
             )
-            last_hidden = out.last_hidden_state
+            # PEFT models / some HF models expose the inner output via .base_model
+            # but the .last_hidden_state attribute is consistent.
+            last_hidden = (
+                backbone_out.last_hidden_state
+                if hasattr(backbone_out, "last_hidden_state")
+                else backbone_out[0]
+            )
 
         head_dtype = next(self.body.parameters()).dtype
         last_hidden = last_hidden.to(head_dtype)

@@ -1,6 +1,14 @@
 # APO — Architecture Policy Optimization
 
-学一个 task-conditioned 的多智能体架构分布。Head 是个小 LM (Qwen3-0.6B)，输出 4 个 typed 概率分布；worker 是 OpenAI-compatible API（DeepSeek-V3 默认）。整个项目只训练 head。
+学一个 task-conditioned 的多智能体架构分布。Head 是个 LM (默认 Qwen3.5-9B；可换成 Qwen3-0.6B 做轻量 ablation)，输出 4 个 typed 概率分布；worker 是 OpenAI-compatible API（DeepSeek-V3 默认）。本地只训练 head。
+
+V3.5 起 head 的 backbone **默认 trainable**，三种模式切换：
+
+| 模式 | flag | trainable params (Qwen3.5-9B) | 单卡 mem | 适合场景 |
+|---|---|---|---|---|
+| 全参数 fine-tune | `(default)` | ~9B | 80GB + GC | 卡多/卡大 |
+| LoRA | `--lora_rank 32` | ~50M | 24GB+ | 推荐：cheap、防 overfit |
+| 冻 backbone（V3 行为） | `--freeze_backbone` | ~1M | 任何卡 | head-only baseline |
 
 ![A multi-agent architecture is determined by 4 things](assets/fig1_four_things.png)
 
@@ -15,7 +23,7 @@
 bash scripts/00_setup_env.sh        # conda env + deps + editable install
 conda activate arch_policy
 python scripts/02_smoke_test.py     # 26 PASS, no GPU / no API
-python scripts/01_download_models.py  # Qwen3-0.6B (~1.2 GB)
+python scripts/01_download_models.py  # Qwen3.5-9B (~18 GB) — set HEAD_MODEL=Qwen/Qwen3-0.6B for the small one
 ```
 
 配 worker（DeepSeek 或任何 OpenAI-compatible）：
@@ -27,32 +35,50 @@ export OPENAI_BASE_URL="https://api.deepseek.com/v1"
 
 ## 跑
 
+每个 epoch 都会自动存一个 `head_epoch{N}/` checkpoint；选其中表现最好的一个推到 GRPO。
+
 ```bash
-# Stage 1 SFT (本地训练，~1 hour 单卡)
-# 默认 family-stratified 采样 + tier_ratio 与库组成对齐 (0.73/0.16/0.11)
+# === Stage 1 SFT (本地) ============================================
+# 默认 family-stratified 采样, tier_ratio (0.73/0.16/0.11), 每 epoch 存 ckpt
+# 默认 trainability mode = full fine-tune (V3.5)
+
+# (A) 推荐：LoRA, 单卡 24GB+ 都行，避免 overfit
 python scripts/03_run_sft.py \
-  --tasks_source mixed --n_tasks 5000 --epochs 5 \
+  --tasks_source mixed --epochs 5 \
+  --lora_rank 32 \
   --device cuda:0 --out_dir checkpoints/sft
 
-# 关掉 family-stratified 走 legacy uniform-over-entries（不推荐，仅消融）
-python scripts/03_run_sft.py --no-stratify_by_family ...
+# (B) 全参数 fine-tune (重，9B 单卡 80GB + 必开 gradient checkpointing)
+python scripts/03_run_sft.py \
+  --tasks_source mixed --epochs 5 \
+  --gradient_checkpointing \
+  --device cuda:0 --out_dir checkpoints/sft
 
-# Stage 2 GRPO (烧 worker API)
+# (C) V3 baseline：只训 4 个 typed heads, backbone 冻死
+python scripts/03_run_sft.py \
+  --tasks_source mixed --epochs 5 \
+  --freeze_backbone \
+  --device cuda:0 --out_dir checkpoints/sft
+
+# === Stage 2 GRPO (烧 worker API) ==================================
+# 注意：mode flags 必须和 SFT 阶段一致 (否则 ckpt 加载会缺/多 key)
 python scripts/06_run_grpo.py \
-  --head_ckpt checkpoints/sft/head_step100 \
+  --head_ckpt checkpoints/sft/head_epoch4 \
+  --lora_rank 32 \
   --dataset gsm8k --n 200 --G 4 --epochs 2 \
   --worker openai --worker_model deepseek-chat \
   --out_dir checkpoints/grpo
 
-# Eval
+# === Eval ==========================================================
 python scripts/05_evaluate.py \
   --mode head --head_ckpt checkpoints/grpo/head_grpo_final \
+  --lora_rank 32 \
   --dataset gsm8k --n 200 \
   --worker openai --worker_model deepseek-chat \
   --out_jsonl results/apo_gsm8k.jsonl
 
-# Inspect head outputs on a few sample tasks
-python scripts/04_inspect_head.py --ckpt checkpoints/sft/head_step100
+# === Inspect head outputs on a few sample tasks =====================
+python scripts/04_inspect_head.py --ckpt checkpoints/sft/head_epoch4
 ```
 
 ## Layout
@@ -84,7 +110,7 @@ src/arch_policy/
 
 scripts/
   00_setup_env.sh           conda env
-  01_download_models.py     pull Qwen3-0.6B
+  01_download_models.py     pull Qwen3.5-9B (override via HEAD_MODEL env)
   02_smoke_test.py          26 CPU smoke tests
   03_run_sft.py             Stage-1 (--stratify_by_family / --tier_ratio)
   04_inspect_head.py        decode head outputs

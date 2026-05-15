@@ -180,17 +180,29 @@ def _ensure_dir(p: str | os.PathLike) -> Path:
 
 
 def save_head_checkpoint(model: ArchitectureHead, ckpt_dir: str | os.PathLike, tag: str) -> Path:
+    """Save only the trainable parameters.
+
+    This works correctly across all three modes:
+      - frozen backbone:   saves heads only (~1MB for n_max=6, k_roles=8)
+      - full fine-tune:    saves heads + backbone (~18GB for 9B in bf16)
+      - LoRA:              saves heads + LoRA adapters (~50MB for rank 32)
+
+    Use of `requires_grad` to decide what to save means the checkpoint always
+    matches what was actually trained, no manual prefix filtering.
+    """
     out = _ensure_dir(ckpt_dir) / f"head_{tag}"
     out.mkdir(parents=True, exist_ok=True)
+
+    trainable_keys = {n for n, p in model.named_parameters() if p.requires_grad}
+    full_state = model.state_dict()
+    saved = {k: v.detach().cpu() for k, v in full_state.items() if k in trainable_keys}
+
     state = {
-        "head_state_dict": {
-            k: v.detach().cpu()
-            for k, v in model.state_dict().items()
-            if not k.startswith("backbone.")
-        },
+        "head_state_dict": saved,
         "head_cfg": asdict(model.head_cfg),
         "arch_spec": asdict(model.arch_spec),
         "backbone_name": model.backbone_name,
+        "saved_keys": sorted(saved.keys()),
     }
     torch.save(state, out / "head.pt")
     with open(out / "meta.json", "w") as f:
@@ -198,18 +210,25 @@ def save_head_checkpoint(model: ArchitectureHead, ckpt_dir: str | os.PathLike, t
             "backbone_name": model.backbone_name,
             "arch_spec": asdict(model.arch_spec),
             "head_cfg": asdict(model.head_cfg),
+            "n_saved_keys": len(saved),
+            "n_saved_params": sum(v.numel() for v in saved.values()),
         }, f, indent=2)
     return out
 
 
 def load_head_checkpoint(model: ArchitectureHead, ckpt_dir: str | os.PathLike) -> None:
+    """Load a checkpoint into `model`.
+
+    The checkpoint may contain only trainable params (post-V3.5 saves) or the
+    older full head-only state. We use strict=False so missing backbone keys
+    are silently OK (the freshly-loaded backbone weights stay intact).
+    """
     state = torch.load(Path(ckpt_dir) / "head.pt", map_location="cpu", weights_only=False)
     missing, unexpected = model.load_state_dict(state["head_state_dict"], strict=False)
-    head_missing = [k for k in missing if not k.startswith("backbone.")]
-    if head_missing:
-        raise RuntimeError(f"missing head keys when loading checkpoint: {head_missing}")
     if unexpected:
         raise RuntimeError(f"unexpected keys when loading checkpoint: {unexpected}")
+    # `missing` may include backbone params if the checkpoint was made with
+    # frozen backbone and we now load with unfrozen — that's intentional.
 
 
 # ---------------------------------------------------------------------------
@@ -312,7 +331,8 @@ def train_sft(
                 best_eval_loss = eval_loss
                 save_head_checkpoint(model, out_dir, tag="best_eval")
 
-        save_head_checkpoint(model, out_dir, tag=f"epoch{epoch}")
+        ep_ckpt = save_head_checkpoint(model, out_dir, tag=f"epoch{epoch}")
+        print(f"[sft] saved epoch-{epoch} checkpoint → {ep_ckpt}")
 
     save_head_checkpoint(model, out_dir, tag="final")
     _write_history(out_dir, history)

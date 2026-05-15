@@ -66,10 +66,13 @@ class ArchSpec:
 
 @dataclass(frozen=True)
 class ModelSpec:
-    """Model selection. Override via env vars or CLI flags as needed."""
+    """Model selection. Override via env vars or CLI flags as needed.
 
-    # The HEAD is the only thing we train.
-    head_model: str = "Qwen/Qwen3-0.6B"
+    The HEAD is the trained model. In V3.5+ the backbone defaults to
+    trainable (full FT or LoRA) — see `ArchitectureHead` for the three modes.
+    """
+
+    head_model: str = "Qwen/Qwen3.5-9B"
     head_dtype: str = "bfloat16"
     head_device: str = "cuda:0"
 
@@ -84,12 +87,19 @@ class TrainSpec:
     """Default training hyperparameters."""
 
     # ---- SFT (Stage 1) ------------------------------------------------------
-    sft_epochs: int = 3
-    sft_lr: float = 5e-5
+    # Per-epoch checkpoint is ALWAYS written (in addition to the
+    # every-N-steps cadence below). Epoch ckpts are the canonical
+    # selection units for picking which weight to push to GRPO.
+    sft_epochs: int = 5
+    # Default LR is conservative (good for full FT 9B). Override via CLI:
+    #   - frozen-backbone head-only      :  5e-5  (was V3 default)
+    #   - LoRA backbone + heads          :  1e-4
+    #   - full fine-tune (9B all params) :  1e-5  (this default)
+    sft_lr: float = 1e-5
     sft_batch_size: int = 8
     sft_grad_accum: int = 2
     sft_warmup_ratio: float = 0.05
-    sft_save_every_n_steps: int = 100
+    sft_save_every_n_steps: int = 200
     sft_max_steps: int | None = None
 
     # Per-head loss weights (typed losses).

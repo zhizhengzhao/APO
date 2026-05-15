@@ -109,7 +109,10 @@ def main() -> int:
     ap.add_argument("--baseline", default="single",
                     help="baseline name (see arch_policy.baselines.BASELINE_REGISTRY)")
     ap.add_argument("--head_ckpt", default=None, help="path to head checkpoint dir")
-    ap.add_argument("--head_model", default="Qwen/Qwen3-0.6B")
+    ap.add_argument("--head_model", default="Qwen/Qwen3.5-9B")
+    ap.add_argument("--lora_rank", type=int, default=0,
+                    help="LoRA rank (must match SFT setting if non-zero).")
+    ap.add_argument("--freeze_backbone", action=argparse.BooleanOptionalAction, default=False)
     ap.add_argument("--head_device", default="cuda" if os.environ.get("CUDA_VISIBLE_DEVICES") else "cpu")
     ap.add_argument("--head_sample", action="store_true",
                     help="stochastic sampling instead of deterministic (needed for self_consistency > 1)")
@@ -171,12 +174,14 @@ def main() -> int:
         tokenizer = load_tokenizer(args.head_model)
         head = ArchitectureHead(
             backbone_name=args.head_model,
-            freeze_backbone=True,
+            freeze_backbone=args.freeze_backbone,
+            lora_rank=args.lora_rank,
             torch_dtype="float32" if args.head_device == "cpu" else "bfloat16",
         )
         load_head_checkpoint(head, args.head_ckpt)
         head.to(args.head_device).eval()
-        print(f"[eval] loaded head from {args.head_ckpt}")
+        print(f"[eval] loaded head from {args.head_ckpt} "
+              f"(freeze_backbone={args.freeze_backbone}, lora_rank={args.lora_rank})")
 
     # --- Run ---
     out_path = Path(args.out_jsonl)
