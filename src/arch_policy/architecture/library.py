@@ -9,23 +9,39 @@ Library is organized in 3 tiers (counts are exact at the time of writing;
 see `canonical_library() / imperfect_library() / random_archs()` for live
 counts):
 
-  TIER 1 — Canonical (70 entries from 33 families)
+  TIER 1 — Canonical (69 entries from 33 families)
     Each family is a generator function producing 1-4 variants by varying
     size / role substitution / edge density. Variants share the same
-    `family_*` tag so tier-2/3 sampling can be controlled per family.
+    `family_*` tag so callers can do family-stratified sampling
+    (recommended; otherwise high-variant families like fam_mad_debate get
+    sampled disproportionately under uniform-over-entries sampling).
 
-  TIER 2 — Imperfect (22 entries, 13 imperfection patterns)
+  TIER 2 — Imperfect (15 entries, 13 imperfection patterns)
     Controlled flaws: Critic-before-Solver, single-source Refiner,
     Verifier-in-middle, lonely Researcher, planner-last, no-loopback,
-    role-duplication, etc. These teach the head that "slightly off"
-    architectures still appear in the training distribution so GRPO can
-    interpolate around them.
+    role-duplication, etc. Each entry has exactly ONE clear flaw; teaches
+    the head that "slightly off" architectures still live near the
+    canonical manifold so GRPO can interpolate around them. Trimmed from
+    22 → 15 in V3 by removing redundant 3-agent vs 4-agent twins.
 
-  TIER 3 — Random noise (~10 entries)
+  TIER 3 — Random noise (10 entries)
     Random size + role + edges, but constrained to have ≥1 answerer
-    (Solver / Refiner / Verifier).
+    (Solver / Refiner / Verifier). Generated with fixed seed for
+    reproducible noise floor (intentional design — Tier 3 is meant to be
+    a stable component of the SFT distribution, not per-epoch novelty).
 
-Total full_library() ≈ 100 entries with tier ratio ≈ 70 / 21 / 10.
+Total full_library() ≈ 94 entries with tier ratio ≈ 73 / 16 / 11.
+
+Design notes (responding to adversarial review):
+  - Mesh + sequence: full_mesh edges combined with strict sequence ordering
+    is internally consistent because the executor's multi-cycle loop lets
+    every agent eventually see every other agent's latest message
+    (cycle 1: forward propagation only; cycle 2+: full bidirectional).
+  - Verifier-as-Judge in MAD-judge variants: Verifier's responsibility
+    ("re-derive from scratch / use sympy / run python_exec") is consistent
+    with picking the correct candidate among debating Solvers for objective
+    tasks. For subjective tasks, MoA-style Refiner aggregation is more
+    appropriate (covered by fam_moa_*).
 
 Conventions:
   - 8 roles: Planner / Decomposer / Solver / Critic / Verifier / Refiner /
@@ -120,6 +136,22 @@ def _has_answerer(agents: list[tuple[int, int]]) -> bool:
     return any(r in ANSWERER_ROLES for _, r in agents)
 
 
+def family_of(arch: NamedArch) -> str:
+    """Return the family tag (`family_*`) of `arch`, or 'imperfect' / 'random'.
+
+    Used for family-stratified sampling. Each canonical NamedArch has exactly
+    one tag starting with `family_`; imperfect/random entries don't.
+    """
+    for t in arch.tags:
+        if t.startswith("family_"):
+            return t
+    if "imperfect" in arch.tags:
+        return "_imperfect"
+    if "random" in arch.tags:
+        return "_random"
+    return "_other"
+
+
 def _safe_append(out: list[NamedArch], arch: NamedArch) -> None:
     """Validate and append; raise informative error if invalid."""
     arch.validate()
@@ -145,25 +177,20 @@ def fam_single_solver() -> list[NamedArch]:
 
 
 def fam_single_researcher() -> list[NamedArch]:
-    """Family: Single-Researcher (gather-then-answer). 2 variants.
+    """Family: Single-Researcher with grounding. 1 variant.
 
-    Note: a Researcher producing the final answer is semantically a stretch
-    (responsibility is to gather, not to solve). Kept as a baseline; the
-    R→V variant grounds it more explicitly.
+    Note: a single Researcher producing the final answer is semantically
+    incoherent (Researcher's responsibility is to gather, not to solve).
+    Removed in V3 (was `single_researcher` baseline-exception entry).
+    Kept the R→V grounded variant which has a real answerer.
     """
     return [
-        NamedArch(
-            name="single_researcher",
-            agents=[(0, RESEARCHER)], edges=[], sequence=[0],
-            description="One Researcher gathers info and produces a summary as answer.",
-            tags=("single", "baseline_exception", "family_single_researcher"),
-        ),
         NamedArch(
             name="researcher_verified",
             agents=[(0, RESEARCHER), (1, VERIFIER)],
             edges=[(0, 1)],
             sequence=[0, 1],
-            description="Researcher gathers + drafts, Verifier checks (Wikipedia-style).",
+            description="Researcher gathers + drafts, Verifier checks (Wikipedia-style RAG).",
             tags=("chain", "family_single_researcher"),
         ),
     ]
@@ -905,20 +932,12 @@ def imperfect_library() -> list[NamedArch]:
     #        candidate to react to in cycle 1, but receives Solver's output
     #        in subsequent cycles via the back-edge from Solver).
     out.append(NamedArch(
-        name="imp_critic_first_3",
+        name="imp_critic_first",
         agents=[(0, CRITIC), (1, SOLVER), (2, VERIFIER)],
         edges=[(0, 1), (1, 0), (1, 2)],
         sequence=[0, 1, 2],
         description="IMPERFECT: Critic speaks first with nothing to critique, "
                     "but loop allows it to react in cycle 2+.",
-        tags=("imperfect", "imp_critic_first"),
-    ))
-    out.append(NamedArch(
-        name="imp_critic_first_4",
-        agents=[(0, PLANNER), (1, CRITIC), (2, SOLVER), (3, VERIFIER)],
-        edges=[(0, 1), (0, 2), (1, 2), (2, 3)],
-        sequence=[0, 1, 2, 3],
-        description="IMPERFECT: Critic speaks before Solver (Plan → Critic → Solve → Verify).",
         tags=("imperfect", "imp_critic_first"),
     ))
 
@@ -930,14 +949,6 @@ def imperfect_library() -> list[NamedArch]:
         edges=[(0, 1)],
         sequence=[0, 1],
         description="IMPERFECT: Refiner with single input (semantically more like 'editor').",
-        tags=("imperfect", "imp_solo_refiner"),
-    ))
-    out.append(NamedArch(
-        name="imp_solo_refiner_4",
-        agents=[(0, PLANNER), (1, SOLVER), (2, REFINER), (3, VERIFIER)],
-        edges=[(0, 1), (1, 2), (2, 3)],
-        sequence=[0, 1, 2, 3],
-        description="IMPERFECT: Refiner has only 1 source (Solver) to refine.",
         tags=("imperfect", "imp_solo_refiner"),
     ))
 
@@ -960,14 +971,6 @@ def imperfect_library() -> list[NamedArch]:
         edges=[(1, 2)],
         sequence=[0, 1, 2],
         description="IMPERFECT: Researcher is in the team but isolated (no edges out).",
-        tags=("imperfect", "imp_lonely_researcher"),
-    ))
-    out.append(NamedArch(
-        name="imp_lonely_researcher_4",
-        agents=[(0, RESEARCHER), (1, PLANNER), (2, SOLVER), (3, VERIFIER)],
-        edges=[(1, 2), (2, 3)],
-        sequence=[0, 1, 2, 3],
-        description="IMPERFECT: Researcher disconnected; pipeline runs without its output.",
         tags=("imperfect", "imp_lonely_researcher"),
     ))
 
@@ -998,14 +1001,6 @@ def imperfect_library() -> list[NamedArch]:
         edges=[(0, 1), (0, 2), (1, 2)],
         sequence=[0, 1, 2],
         description="IMPERFECT: No Solver — Refiner must produce the answer from research + critique.",
-        tags=("imperfect", "imp_no_solver"),
-    ))
-    out.append(NamedArch(
-        name="imp_no_solver_4",
-        agents=[(0, PLANNER), (1, RESEARCHER), (2, CRITIC), (3, REFINER)],
-        edges=[(0, 1), (0, 3), (1, 3), (2, 3)],
-        sequence=[0, 1, 2, 3],
-        description="IMPERFECT: No Solver in 4-agent team; Refiner improvises.",
         tags=("imperfect", "imp_no_solver"),
     ))
 
@@ -1054,19 +1049,11 @@ def imperfect_library() -> list[NamedArch]:
 
     # IMP11 — Planner-last (orchestrator at tail; first cycle has no plan).
     out.append(NamedArch(
-        name="imp_planner_last_3",
+        name="imp_planner_last",
         agents=[(0, SOLVER), (1, VERIFIER), (2, PLANNER)],
         edges=[(0, 1), (2, 0), (2, 1)],
         sequence=[0, 1, 2],
         description="IMPERFECT: Planner speaks last; first cycle has no plan to follow.",
-        tags=("imperfect", "imp_planner_last"),
-    ))
-    out.append(NamedArch(
-        name="imp_planner_last_4",
-        agents=[(0, SOLVER), (1, REFINER), (2, VERIFIER), (3, PLANNER)],
-        edges=[(0, 1), (1, 2), (3, 0), (3, 1)],
-        sequence=[0, 1, 2, 3],
-        description="IMPERFECT: Planner positioned at tail (orchestrator after the fact).",
         tags=("imperfect", "imp_planner_last"),
     ))
 
@@ -1079,15 +1066,6 @@ def imperfect_library() -> list[NamedArch]:
         sequence=[0, 1],
         description="IMPERFECT: Verifier→Solver but no Solver→Verifier; "
                     "Verifier has nothing to verify in cycle 1.",
-        tags=("imperfect", "imp_no_loopback"),
-    ))
-    out.append(NamedArch(
-        name="imp_no_loopback_3",
-        agents=[(0, SOLVER), (1, CRITIC), (2, VERIFIER)],
-        edges=[(1, 0), (2, 0)],
-        sequence=[0, 1, 2],
-        description="IMPERFECT: Critic + Verifier feed back to Solver, "
-                    "but Solver never reports out (no Solver→{Critic,Verifier} edges).",
         tags=("imperfect", "imp_no_loopback"),
     ))
 
@@ -1109,16 +1087,6 @@ def imperfect_library() -> list[NamedArch]:
         sequence=[0, 1, 2],
         description="IMPERFECT: 2 Verifiers with no consensus mechanism (no Refiner).",
         tags=("imperfect", "imp_role_duplication"),
-    ))
-
-    # IMP14 — Extra Verifier-middle case (under-represented in V1).
-    out.append(NamedArch(
-        name="imp_verifier_middle_5",
-        agents=[(0, PLANNER), (1, SOLVER), (2, VERIFIER), (3, SOLVER), (4, REFINER)],
-        edges=[(0, 1), (0, 3), (1, 2), (2, 4), (3, 4)],
-        sequence=[0, 1, 2, 3, 4],
-        description="IMPERFECT: Verifier judges Solver_1 before Solver_2 finishes — partial info.",
-        tags=("imperfect", "imp_verifier_middle"),
     ))
 
     for a in out:
@@ -1213,4 +1181,5 @@ __all__ = [
     "core_library",
     "full_library",
     "full_mesh",
+    "family_of",
 ]

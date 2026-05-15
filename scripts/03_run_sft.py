@@ -63,6 +63,10 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--max_seq_len", type=int, default=384)
     ap.add_argument("--dtype", default="bfloat16", choices=["bfloat16", "float16", "float32"])
+    ap.add_argument("--stratify_by_family", action="store_true",
+                    help="Pair each task with a family-stratified random NamedArch "
+                         "(uniform over families, not entries). Avoids over-sampling "
+                         "high-variant families like fam_mad_debate.")
     ap.add_argument("--wandb", action="store_true")
     ap.add_argument("--wandb_project", default="arch_policy")
     ap.add_argument("--wandb_run", default=None)
@@ -123,7 +127,10 @@ def main() -> int:
         tokenizer=tokenizer,
         max_len=args.max_seq_len,
         seed=args.seed,
+        stratify_by_family=args.stratify_by_family,
     )
+    if args.stratify_by_family:
+        print(f"[sft] family-stratified sampling enabled: each family has equal weight")
     loader = DataLoader(
         ds,
         batch_size=args.batch_size,
