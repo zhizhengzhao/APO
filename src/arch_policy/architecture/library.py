@@ -449,16 +449,14 @@ def fam_research_solve_verify() -> list[NamedArch]:
 
 
 def fam_moa_mini() -> list[NamedArch]:
-    """Family: MoA-mini (2 Solvers, ± Refiner). 2 variants."""
+    """Family: MoA-mini (2 Solvers, no aggregator). 1 variant.
+
+    The "with Refiner" variant lives in `fam_moa_fanin` (n=2). Keeping only
+    the "no aggregator" version here avoids a duplicate `moa_2sr` entry
+    across `family_moa_mini` and `family_moa` (which would inflate that
+    pattern's sampling weight under family-stratified sampling).
+    """
     return [
-        NamedArch(
-            name="moa_2sr",
-            agents=[(0, SOLVER), (1, SOLVER), (2, REFINER)],
-            edges=[(0, 2), (1, 2)],
-            sequence=[0, 1, 2],
-            description="MoA mini: 2 Solvers fan in to Refiner.",
-            tags=("moa", "family_moa_mini"),
-        ),
         NamedArch(
             name="moa_2s_indep",
             agents=[(0, SOLVER), (1, SOLVER)],

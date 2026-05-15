@@ -144,6 +144,37 @@ def test_library_validates():
             assert 0 <= r < ARCH.k_roles
 
 
+def test_library_no_duplicate_names():
+    """No two NamedArch entries should share the same `name` (would inflate
+    sampling weight and confuse diagnostics)."""
+    from collections import Counter
+    lib = full_library(seed=0)
+    counts = Counter(a.name for a in lib)
+    dups = {n: c for n, c in counts.items() if c > 1}
+    assert not dups, f"duplicate NamedArch names: {dups}"
+
+
+def test_library_no_structural_duplicates_in_canonical():
+    """Two canonical entries with identical (agents, edges, sequence) would
+    train the head twice on the same target; drop one."""
+    from collections import Counter
+    from arch_policy.architecture.library import canonical_library
+    canon = canonical_library()
+    keys = Counter(
+        (tuple(sorted(a.agents)), tuple(sorted(a.edges)), tuple(a.sequence))
+        for a in canon
+    )
+    struct_dups = {k: c for k, c in keys.items() if c > 1}
+    if struct_dups:
+        examples = []
+        for k in list(struct_dups)[:3]:
+            names = [a.name for a in canon
+                     if (tuple(sorted(a.agents)), tuple(sorted(a.edges)),
+                         tuple(a.sequence)) == k]
+            examples.append(names)
+        assert False, f"structurally identical canonical entries: {examples}"
+
+
 def test_encoder_round_trip_to_targets():
     """encode → ArchTargets matches the NamedArch's structure."""
     lib = full_library(seed=0)
