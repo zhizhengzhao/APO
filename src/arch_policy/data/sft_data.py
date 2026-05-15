@@ -21,6 +21,11 @@ Two sampling modes (controlled by `stratify_by_family`):
         count), AND maintains the canonical/imperfect/random tier ratio.
         Recommended for SFT.
 
+        Default `tier_ratio = (0.73, 0.16, 0.11)` matches the library's
+        natural composition (68 canonical / 15 imperfect / 10 random = 93).
+        If you want to deliberately amplify imperfect (e.g. to thicken the
+        manifold for GRPO), pass a custom tier_ratio explicitly.
+
 Note: each `ArchTargets` has a variable-length `seq` (length = #active),
 so we can't stack into a single tensor. The collate function returns a
 *list* of `ArchTargets` (one per batch row); SFT loss iterates over them.
@@ -72,7 +77,7 @@ class SFTArchDataset(Dataset):
         max_len: int = 512,
         seed: int = 0,
         stratify_by_family: bool = False,
-        tier_ratio: tuple[float, float, float] = (0.7, 0.2, 0.1),
+        tier_ratio: tuple[float, float, float] = (0.73, 0.16, 0.11),
     ) -> None:
         if targets is None:
             targets = encode_library(library)

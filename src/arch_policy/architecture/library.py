@@ -9,12 +9,13 @@ Library is organized in 3 tiers (counts are exact at the time of writing;
 see `canonical_library() / imperfect_library() / random_archs()` for live
 counts):
 
-  TIER 1 — Canonical (69 entries from 33 families)
+  TIER 1 — Canonical (68 entries from 33 families)
     Each family is a generator function producing 1-4 variants by varying
     size / role substitution / edge density. Variants share the same
     `family_*` tag so callers can do family-stratified sampling
-    (recommended; otherwise high-variant families like fam_mad_debate get
-    sampled disproportionately under uniform-over-entries sampling).
+    (RECOMMENDED, and now the default in scripts/03_run_sft.py; otherwise
+    high-variant families like fam_mad_debate get sampled disproportionately
+    under uniform-over-entries sampling).
 
   TIER 2 — Imperfect (15 entries, 13 imperfection patterns)
     Controlled flaws: Critic-before-Solver, single-source Refiner,
@@ -27,21 +28,46 @@ counts):
   TIER 3 — Random noise (10 entries)
     Random size + role + edges, but constrained to have ≥1 answerer
     (Solver / Refiner / Verifier). Generated with fixed seed for
-    reproducible noise floor (intentional design — Tier 3 is meant to be
-    a stable component of the SFT distribution, not per-epoch novelty).
+    reproducible noise floor — same 10 reference architectures every epoch
+    keeps the regularizer signal stable rather than introducing fresh
+    out-of-pattern noise per epoch.
 
-Total full_library() ≈ 94 entries with tier ratio ≈ 73 / 16 / 11.
+Total full_library() = 93 entries with library composition 73 / 16 / 11.
+Default SFT sampling tier_ratio matches library composition by design.
 
-Design notes (responding to adversarial review):
+Design notes (responding to adversarial review rounds 1-2):
+
   - Mesh + sequence: full_mesh edges combined with strict sequence ordering
-    is internally consistent because the executor's multi-cycle loop lets
-    every agent eventually see every other agent's latest message
-    (cycle 1: forward propagation only; cycle 2+: full bidirectional).
+    is consistent in the EXECUTOR's multi-cycle steady state. Cycle 1:
+    forward propagation along sequence. Cycle 2+: each agent sees the
+    LATEST message from every neighbor with an incoming edge, but note
+    that within one cycle the message is only updated when the speaker
+    takes its turn — so an agent speaking mid-cycle sees the previous-
+    cycle latest from agents whose turn hasn't arrived yet, not their
+    current-cycle in-progress reply. Caveat: if Synth says ANSWER on
+    cycle 1, the steady-state mesh doesn't fully realize. This is a
+    feature (cheap easy tasks terminate early), but architects relying
+    on full mesh propagation should verify their use case warrants
+    multiple cycles via reward shaping / Synth prompt design.
+
   - Verifier-as-Judge in MAD-judge variants: Verifier's responsibility
-    ("re-derive from scratch / use sympy / run python_exec") is consistent
-    with picking the correct candidate among debating Solvers for objective
-    tasks. For subjective tasks, MoA-style Refiner aggregation is more
-    appropriate (covered by fam_moa_*).
+    ("re-derive from scratch / use sympy / run python_exec") is
+    consistent with picking the correct candidate among debating Solvers
+    on OBJECTIVE tasks (math, code). For subjective tasks where re-
+    derivation doesn't apply, fam_moa_* (Refiner-as-aggregator) is the
+    appropriate pattern. The library does NOT condition NamedArch on
+    task type — by design, we want the head to learn a task-INVARIANT
+    architecture distribution at SFT time and let GRPO learn task-
+    conditional preferences. Some Verifier-as-Judge instances will be
+    sampled for subjective tasks; this is acceptable noise within the
+    "soft-edge" tier-2 spirit.
+
+  - imp_verifier_middle_4 vs canonical sv/scv (Verifier-as-tail) tension:
+    deliberate. The point of tier 2 is to expose the head to slightly-
+    off variants of canonical patterns so it doesn't collapse to a few
+    sharp attractors. A canonical "Verifier-tail" learnt under SFT plus
+    one tier-2 "Verifier-middle" reference is the intended manifold-
+    plus-soft-edge design.
 
 Conventions:
   - 8 roles: Planner / Decomposer / Solver / Critic / Verifier / Refiner /
@@ -902,7 +928,7 @@ CANONICAL_FAMILIES = [
 
 
 def canonical_library() -> list[NamedArch]:
-    """Tier 1: all canonical archetypes from the 33 families (~70 entries)."""
+    """Tier 1: all canonical archetypes from the 33 families (68 entries)."""
     out: list[NamedArch] = []
     for fam in CANONICAL_FAMILIES:
         for arch in fam():
@@ -916,7 +942,7 @@ def canonical_library() -> list[NamedArch]:
 # =======================================================================
 
 def imperfect_library() -> list[NamedArch]:
-    """Tier 2: ~20 entries with controlled imperfections.
+    """Tier 2: 15 entries with controlled imperfections.
 
     Each one is *valid* (validates) and has an answerer, but exhibits one
     semantic mismatch (e.g. Critic before Solver, single-source Refiner,

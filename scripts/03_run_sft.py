@@ -63,10 +63,16 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--max_seq_len", type=int, default=384)
     ap.add_argument("--dtype", default="bfloat16", choices=["bfloat16", "float16", "float32"])
-    ap.add_argument("--stratify_by_family", action="store_true",
+    ap.add_argument("--stratify_by_family", action=argparse.BooleanOptionalAction,
+                    default=True,
                     help="Pair each task with a family-stratified random NamedArch "
-                         "(uniform over families, not entries). Avoids over-sampling "
-                         "high-variant families like fam_mad_debate.")
+                         "(uniform over families, not entries). Default ON. "
+                         "Pass --no-stratify_by_family to revert to uniform-over-entries.")
+    ap.add_argument("--tier_ratio", type=float, nargs=3,
+                    default=[0.73, 0.16, 0.11],
+                    metavar=("CANONICAL", "IMPERFECT", "RANDOM"),
+                    help="Tier sampling ratio when stratify_by_family is on. "
+                         "Default (0.73, 0.16, 0.11) matches library composition.")
     ap.add_argument("--wandb", action="store_true")
     ap.add_argument("--wandb_project", default="arch_policy")
     ap.add_argument("--wandb_run", default=None)
@@ -120,6 +126,7 @@ def main() -> int:
     )
     print(f"[sft] trainable params = {model.trainable_parameters():,}")
 
+    tier_ratio_t = tuple(args.tier_ratio)
     ds = SFTArchDataset(
         tasks=tasks,
         library=library,
@@ -128,9 +135,20 @@ def main() -> int:
         max_len=args.max_seq_len,
         seed=args.seed,
         stratify_by_family=args.stratify_by_family,
+        tier_ratio=tier_ratio_t,
     )
     if args.stratify_by_family:
-        print(f"[sft] family-stratified sampling enabled: each family has equal weight")
+        print(
+            f"[sft] family-stratified sampling enabled (recommended). "
+            f"tier_ratio canonical/imperfect/random = "
+            f"{tier_ratio_t[0]:.2f}/{tier_ratio_t[1]:.2f}/{tier_ratio_t[2]:.2f}"
+        )
+    else:
+        print(
+            "[sft] family-stratified sampling DISABLED — uniform over entries; "
+            "high-variant families (mad_debate / moa_fanin / hier / hub) will be "
+            "OVERSAMPLED. Pass --stratify_by_family to fix."
+        )
     loader = DataLoader(
         ds,
         batch_size=args.batch_size,
