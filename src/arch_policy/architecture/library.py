@@ -477,24 +477,41 @@ def core_library() -> list[NamedArch]:
 # Random perturbations of the core library (data augmentation for SFT)
 # -----------------------------------------------------------------------
 
+# Roles that can produce a final answer. SFT targets must contain ≥1 of these
+# — otherwise the architecture has nobody to actually solve the task, which
+# is "fully unreasonable" (vs the desired "a bit unreasonable" for noise).
+ANSWERER_ROLES = (SOLVER, REFINER, VERIFIER)
+
+
+def _has_answerer(agents: list[tuple[int, int]]) -> bool:
+    return any(r in ANSWERER_ROLES for _, r in agents)
+
+
 def _perturb_one(rng: random.Random, base: NamedArch, k: int) -> NamedArch | None:
     """Apply a few random mutations to `base` and return a valid NamedArch.
 
     Mutations applied with independent probabilities:
-      - role swap on one slot
+      - role swap on one slot (forbidden if it would remove the last answerer)
       - one edge drop
       - one edge add (between two distinct active slots)
       - sequence shuffle (always — sequence is a permutation of actives)
+
+    Returns None if the result is structurally invalid OR has no answerer
+    (Solver / Refiner / Verifier).
     """
     agents = list(base.agents)
     edges = list(base.edges)
 
-    # role swap
+    # role swap (with answerer guard)
     if rng.random() < 0.6 and agents:
         idx = rng.randrange(len(agents))
         slot, role = agents[idx]
         new_role = rng.choice([r for r in ROLE_POOL if r != role])
-        agents[idx] = (slot, new_role)
+        candidate_agents = list(agents)
+        candidate_agents[idx] = (slot, new_role)
+        if _has_answerer(candidate_agents):
+            agents = candidate_agents
+        # else: skip the swap — keep the answerer
 
     # edge drop
     if edges and rng.random() < 0.5:
@@ -513,6 +530,8 @@ def _perturb_one(rng: random.Random, base: NamedArch, k: int) -> NamedArch | Non
     sequence = list(actives)
     rng.shuffle(sequence)
 
+    if not _has_answerer(agents):
+        return None
     try:
         new = NamedArch(
             name=f"{base.name}_perturb{k}",
@@ -540,16 +559,26 @@ def random_perturbations(rng: random.Random, n_per_base: int = 3) -> list[NamedA
 
 
 def random_archs(rng: random.Random, n: int = 30) -> list[NamedArch]:
-    """Completely random valid architectures.
+    """Random valid architectures with one minimal reasonability constraint:
+    at least one Solver / Refiner / Verifier (an "answerer" role).
 
-    Each arch gets random size (2..n_max), random active slots, random roles,
-    ~40% edge density, random permutation as sequence.
+    Apart from that: random size (2..n_max), random active slots, random
+    roles, ~40% edge density, random permutation as sequence. Good for
+    injecting "a bit unreasonable" noise into the SFT pool without
+    degenerating to "no agent can give a final answer".
     """
     out: list[NamedArch] = []
-    for k in range(n):
+    attempts = 0
+    while len(out) < n and attempts < n * 10:
+        attempts += 1
         n_agents = rng.randint(2, ARCH.n_max)
         slots = sorted(rng.sample(range(ARCH.n_max), n_agents))
         agents = [(s, rng.choice(ROLE_POOL)) for s in slots]
+
+        if not _has_answerer(agents):
+            # Force an answerer at a random slot
+            idx = rng.randrange(len(agents))
+            agents[idx] = (agents[idx][0], rng.choice(ANSWERER_ROLES))
 
         edges: list[tuple[int, int]] = []
         for i in slots:
@@ -562,7 +591,7 @@ def random_archs(rng: random.Random, n: int = 30) -> list[NamedArch]:
 
         try:
             arch = NamedArch(
-                name=f"random_{k}",
+                name=f"random_{len(out)}",
                 agents=agents, edges=edges, sequence=sequence,
                 description="Random valid architecture.",
                 tags=("random",),
