@@ -314,15 +314,20 @@ def load_huggingface(
 # Mixed pool for SFT (6-source diversity)
 # ---------------------------------------------------------------------------
 
-# Default mix: ratio targets for an SFT task pool.
+# Default mix: per-source target counts for the SFT task pool.
 # Tweak via `load_mixed`'s `ratios` arg if you want a different composition.
+#
+# Note on caps: `load_huggingface(..., n=N)` returns up to min(N, dataset_size).
+# HumanEval has only 164 rows total, so it always returns 164 here.
+# MBPP sanitized has ~974 rows; ARC-Challenge train ~1.1k; BBH per-task ~250.
 DEFAULT_SFT_MIX = {
-    "gsm8k": 1500,
-    "math": 1000,
-    "humaneval": 800,    # actually capped at HumanEval's 164 unless you sample with replacement
-    "mmlu": 700,
-    "bbh": 500,
-    "arc": 500,
+    "gsm8k":     1500,   # train ~7.5k → 1500
+    "math":      1000,   # MATH-500 fallback to lighteval/MATH train if available
+    "humaneval":  164,   # full set (all 164 problems)
+    "mbpp":       800,   # train ~974 → 800
+    "mmlu":       700,   # auxiliary_train ~100k → 700
+    "bbh":        500,   # one subset ~250; load 2 subsets via repeated calls if needed
+    "arc":        500,   # ARC-Challenge train ~1.1k → 500
 }
 
 
