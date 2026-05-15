@@ -7,19 +7,21 @@ Public API:
       log_prob_pl, log_prob_joint                            (sampler.py)
     - NamedArch, core_library, full_library, full_mesh,
       random_archs, random_perturbations,
-      role-id constants (PLANNER, SOLVER, ...)               (library.py)
+      role-id constants (PLANNER, DECOMPOSER, SOLVER, ...)   (library.py)
     - encode_named_arch, encode_library                      (encoder.py)
 """
 
 from .encoder import encode_library, encode_named_arch
 from .library import (
     CRITIC,
+    DECOMPOSER,
     PLANNER,
     REFINER,
     RESEARCHER,
+    ROLE_POOL,
     ROLE_TO_ID,
     SOLVER,
-    TOOLUSER,
+    TESTER,
     VERIFIER,
     NamedArch,
     core_library,
@@ -45,13 +47,15 @@ __all__ = [
     "ArchTargets",
     "CRITIC",
     "ConcreteArch",
+    "DECOMPOSER",
     "NamedArch",
     "PLANNER",
     "REFINER",
     "RESEARCHER",
+    "ROLE_POOL",
     "ROLE_TO_ID",
     "SOLVER",
-    "TOOLUSER",
+    "TESTER",
     "VERIFIER",
     "active_pair_mask",
     "core_library",

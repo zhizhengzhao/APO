@@ -1,17 +1,18 @@
-"""End-to-end Stage-1 SFT runner (v3 typed losses).
+"""End-to-end Stage-1 SFT runner.
 
 Usage::
 
-    python scripts/03_run_sft.py \
-        --tasks_source synthetic \
-        --n_tasks 1000 \
-        --epochs 5 \
-        --out_dir checkpoints/sft \
-        --device cuda:7
+    # Quick CPU smoke (synthetic tasks only)
+    python scripts/03_run_sft.py --tasks_source synthetic --n_tasks 30 \
+        --epochs 1 --batch_size 4 --max_steps 10 --device cpu --dtype float32 \
+        --out_dir /tmp/sft_smoke
 
-Or with real GSM8K (needs internet to first-time download):
+    # Mixed 6-source SFT (default 5000 task pool)
+    python scripts/03_run_sft.py --tasks_source mixed --epochs 3 \
+        --batch_size 8 --device cuda:0 --out_dir checkpoints/sft
 
-    python scripts/03_run_sft.py --tasks_source gsm8k --n_tasks 1500
+    # Single-source (e.g. GSM8K only)
+    python scripts/03_run_sft.py --tasks_source gsm8k --n_tasks 1500 --epochs 3
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ from arch_policy import (
     encode_library,
     full_library,
     load_local_synthetic,
+    load_mixed,
     load_tokenizer,
     seed_all,
     train_sft,
@@ -41,8 +43,15 @@ from arch_policy.data.tasks import load_huggingface
 
 def parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--tasks_source", choices=["synthetic", "gsm8k", "humaneval", "math"], default="synthetic")
-    ap.add_argument("--n_tasks", type=int, default=600)
+    ap.add_argument(
+        "--tasks_source",
+        choices=["synthetic", "gsm8k", "humaneval", "mbpp", "math",
+                 "mmlu", "bbh", "arc", "mixed"],
+        default="mixed",
+        help="`mixed` uses the 6-source DEFAULT_SFT_MIX (~5000 tasks).",
+    )
+    ap.add_argument("--n_tasks", type=int, default=600,
+                    help="Per-source cap (ignored for `mixed` which uses DEFAULT_SFT_MIX).")
     ap.add_argument("--epochs", type=int, default=TRAIN.sft_epochs)
     ap.add_argument("--batch_size", type=int, default=TRAIN.sft_batch_size)
     ap.add_argument("--lr", type=float, default=TRAIN.sft_lr)
@@ -70,6 +79,8 @@ def main() -> int:
 
     if args.tasks_source == "synthetic":
         tasks = load_local_synthetic(n_per_family=max(1, args.n_tasks // 3), seed=args.seed)
+    elif args.tasks_source == "mixed":
+        tasks = load_mixed(seed=args.seed)
     else:
         tasks = load_huggingface(args.tasks_source, split="train", n=args.n_tasks, seed=args.seed)
     print(f"[sft] loaded {len(tasks)} tasks from {args.tasks_source}")

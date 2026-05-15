@@ -1,21 +1,24 @@
 # Default config snapshot — kept in sync with arch_policy.config dataclasses.
 # Override via CLI flags on the runner scripts.
 #
-# v3 design:
-#   - 7 roles (Planner / Solver / Critic / Verifier / Refiner / Researcher / ToolUser)
+# Design:
+#   - 8 roles (Planner / Decomposer / Solver / Critic / Verifier / Refiner /
+#     Researcher / Tester) — every role is defined by responsibility, not by
+#     means. There is no "ToolUser" role: any role can use any tool.
 #   - sequence = priority score per slot (Plackett-Luce, length = #active)
-#   - dynamic stopping via Synth (no fixed k_repeat_max exposed to head)
+#   - dynamic stopping via Synth (no fixed cycle cap exposed to head)
 #   - DeepSeek API as worker (head is the only thing trained)
+#   - Naming: episode > cycle > turn > step
 
 architecture:
   n_max: 6
-  k_roles: 7
+  k_roles: 8
   d_latent: 32
-  role_names: [Planner, Solver, Critic, Verifier, Refiner, Researcher, ToolUser]
+  role_names: [Planner, Decomposer, Solver, Critic, Verifier, Refiner, Researcher, Tester]
   # Engineering safety caps (NOT learned). Reward cost terms teach the system
   # to stop early; these just prevent runaway loops if Synth is misbehaving.
-  safety_max_big_rounds: 20
-  safety_max_inner_rounds: 8
+  safety_max_cycles: 20
+  safety_max_steps: 8
   safety_max_tokens_per_call: 2048
 
 models:
@@ -26,21 +29,22 @@ models:
 
 train:
   sft:
-    epochs: 5
+    epochs: 3                # warm-up only; intermediate ckpt is what we use
     lr: 5.0e-5
     batch_size: 8
     grad_accum: 2
-    save_every_n_steps: 50
+    save_every_n_steps: 100
+    label_smoothing: 0.05    # 0/1 → 0.05/0.95 for Bernoulli; analogous for Cat
     # Per-typed loss weights
     w_gate: 1.0
     w_role: 1.0
     w_edge: 1.0
-    w_seq: 1.0
+    w_seq: 1.0               # PL is NOT smoothed (listwise rank already diverse)
   grpo:
     group_size: 4
     lr: 1.0e-5
     batch_size: 4
-    entropy_weight: 0.01     # NO KL term in v3 (head is fresh policy planner)
+    entropy_weight: 0.01     # NO KL term (head is fresh policy planner)
     clip_eps: 0.2
   reward:
     lambda_agent: 0.03

@@ -222,7 +222,7 @@ def main() -> int:
             "tokens_in": sum(t.total_input_tokens for t in per_arch_outputs),
             "tokens_out": sum(t.total_output_tokens for t in per_arch_outputs),
             "llm_calls": sum(t.n_llm_calls for t in per_arch_outputs),
-            "n_big_rounds": [t.n_big_rounds_run for t in per_arch_outputs],
+            "n_cycles": [t.n_cycles_run for t in per_arch_outputs],
             "n_synth_calls": [t.n_synth_calls for t in per_arch_outputs],
             "via_synth": [t.final_via_synth for t in per_arch_outputs],
             "arch_summary": [t.arch.to_summary() for t in per_arch_outputs],

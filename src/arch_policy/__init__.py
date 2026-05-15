@@ -18,13 +18,15 @@ from .architecture import (
     ArchTargets,
     ConcreteArch,
     CRITIC,
+    DECOMPOSER,
     NamedArch,
     PLANNER,
     REFINER,
     RESEARCHER,
+    ROLE_POOL,
     ROLE_TO_ID,
     SOLVER,
-    TOOLUSER,
+    TESTER,
     VERIFIER,
     active_pair_mask,
     core_library,
@@ -76,8 +78,9 @@ _LAZY_TRAINING = (
 )
 _LAZY_EXECUTOR = ("HFWorker",)
 _LAZY_DATA = (
+    "DEFAULT_SFT_MIX",
     "SFTArchDataset", "SFTSample",
-    "TaskSample", "load_local_synthetic", "load_huggingface", "split_pools",
+    "TaskSample", "load_local_synthetic", "load_huggingface", "load_mixed", "split_pools",
 )
 
 
@@ -109,8 +112,9 @@ __all__ = [
     "log_prob_edges", "log_prob_gates", "log_prob_joint",
     "log_prob_pl", "log_prob_roles",
     # role ids
-    "ROLE_TO_ID", "PLANNER", "SOLVER", "CRITIC", "VERIFIER",
-    "REFINER", "RESEARCHER", "TOOLUSER",
+    "ROLE_TO_ID", "ROLE_POOL",
+    "PLANNER", "DECOMPOSER", "SOLVER", "CRITIC",
+    "VERIFIER", "REFINER", "RESEARCHER", "TESTER",
     # executor
     "Agent", "AgentMessage", "AgentTurnOutput",
     "ExecutionTrace", "MockWorker", "MultiAgentExecutor",
@@ -125,8 +129,9 @@ __all__ = [
     "load_head_checkpoint", "save_head_checkpoint",
     "sft_loss_batch", "sft_loss_single", "train_sft",
     # data (lazy)
+    "DEFAULT_SFT_MIX",
     "SFTArchDataset", "SFTSample", "TaskSample",
-    "load_huggingface", "load_local_synthetic", "split_pools",
+    "load_huggingface", "load_local_synthetic", "load_mixed", "split_pools",
     # reward
     "RewardBreakdown", "compute_reward", "grade_answer",
     # baselines

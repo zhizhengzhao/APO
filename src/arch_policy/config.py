@@ -1,6 +1,6 @@
 """Global configuration for the architecture-policy project.
 
-v3 design (typed heads + ReAct agents + dynamic stopping via Synth):
+Design (typed heads + ReAct agents + dynamic stopping via Synth):
 
   - The head outputs 4 *typed* tensors describing 4 independent distributions:
       * gates  g[i]      : Bernoulli  — which agent slots are active
@@ -9,16 +9,16 @@ v3 design (typed heads + ReAct agents + dynamic stopping via Synth):
                                          latent + role-pair SBM)
       * seq    s[i]      : real score — Plackett-Luce permutation over actives
 
-  - There is NO `weights`, NO `m_max`, NO fixed `k_repeat_max` exposed to the
-    head. The head learns 4 distributions; the executor handles the rest.
+  - Execution model (using cycle / turn / step naming):
+      An "Agent" is a ReAct sub-loop with role-specific prompt and tools.
+      One "cycle" = one full pass through the PL-sampled sequence; each agent
+      gets one "turn" per cycle. Inside a turn, the agent runs a ReAct loop
+      of "steps" (one LLM call each). After every cycle, a Synth LLM call
+      decides ANSWER:<x> or CONTINUE.
 
-  - Execution: an "Agent" is a ReAct sub-loop with role-specific prompt and
-    tools. After each big round (one pass through the PL-sampled sequence),
-    a Synth LLM call decides ANSWER:<x> or CONTINUE. We never expose hard
-    budgets to the policy — only engineering safety caps catch runaway loops.
-
-  - Loss: SFT uses typed losses (BCE + CE + BCE + PL-NLL). GRPO uses typed
-    log_pi (Bern + Cat + Bern + PL) plus an entropy bonus. NO KL.
+  - Loss: SFT uses typed losses (BCE + CE + BCE + PL-NLL) with label
+    smoothing on the Bernoulli/Categorical heads. GRPO uses typed log_pi
+    (Bern + Cat + Bern + PL) plus an entropy bonus. NO KL.
 """
 
 from __future__ import annotations
@@ -38,28 +38,30 @@ class ArchSpec:
     """
 
     n_max: int = 6           # max number of agent slots
-    k_roles: int = 7         # 7 roles, see role_names
+    k_roles: int = 8         # 8 roles, see role_names
     d_latent: int = 32       # per-agent latent dim used by bilinear edge decoder
 
     # Role names — index in this list == role id used everywhere.
-    # Chosen to be a minimal complete cover of the cognitive functions
-    # appearing in 17 popular multi-agent harnesses (see README.md).
+    # Each role is defined by *responsibility*, not by *means*: any role can
+    # use any of the available tools (python_exec / sympy_check / web_search).
+    # That is why there is no "ToolUser" role — calling tools is a means, not
+    # a responsibility.
     role_names: tuple[str, ...] = (
-        "Planner",      # 0 — decompose the task into sub-tasks
-        "Solver",       # 1 — produce candidate answers
-        "Critic",       # 2 — challenge proposed solutions
-        "Verifier",     # 3 — rule-based / re-derivation check
-        "Refiner",      # 4 — integrate / edit / synthesize candidates
-        "Researcher",   # 5 — gather information (multi-step search)
-        "ToolUser",     # 6 — call external tools (python, api, ...)
+        "Planner",      # 0 — high-level decomposition (2-4 sub-steps)
+        "Decomposer",   # 1 — sub-step → atomic actions doable in one turn
+        "Solver",       # 2 — produce candidate answers via reasoning
+        "Critic",       # 3 — challenge candidates, identify flaws
+        "Verifier",     # 4 — independent rule/tool-based correctness check
+        "Refiner",      # 5 — integrate / synthesize multiple candidates
+        "Researcher",   # 6 — gather facts/equations/definitions
+        "Tester",       # 7 — write & run test cases against candidates
     )
 
     # Engineering safety caps — NOT exposed to the head, normally never reached.
-    # The reward function's cost terms (-λ_c·#calls) are what teaches the system
-    # to be efficient. These caps just prevent a runaway bug from burning the
-    # API budget.
-    safety_max_big_rounds: int = 20      # outer loop hard stop
-    safety_max_inner_rounds: int = 8     # ReAct loop per agent hard stop
+    # Reward cost terms (-λ_c · #calls) teach the system to be efficient;
+    # these caps just prevent runaway loops if Synth misbehaves.
+    safety_max_cycles: int = 20             # outer loop hard stop
+    safety_max_steps: int = 8               # ReAct loop per turn hard stop
     safety_max_tokens_per_call: int = 2048
 
 
@@ -73,7 +75,7 @@ class ModelSpec:
     head_device: str = "cuda:0"
 
     # Agents and Synth use the SAME worker (DeepSeek API / OpenAI-compatible).
-    # No local agent inference is required for the v3 plan.
+    # No local agent inference is required.
     worker_model: str = "deepseek-chat"
     worker_base_url: str = "https://api.deepseek.com/v1"
 
@@ -83,12 +85,12 @@ class TrainSpec:
     """Default training hyperparameters."""
 
     # ---- SFT (Stage 1) ------------------------------------------------------
-    sft_epochs: int = 5
+    sft_epochs: int = 3
     sft_lr: float = 5e-5
     sft_batch_size: int = 8
     sft_grad_accum: int = 2
     sft_warmup_ratio: float = 0.05
-    sft_save_every_n_steps: int = 50
+    sft_save_every_n_steps: int = 100
     sft_max_steps: int | None = None
 
     # Per-head loss weights (typed losses).
@@ -96,6 +98,12 @@ class TrainSpec:
     sft_w_role: float = 1.0
     sft_w_edge: float = 1.0
     sft_w_seq: float = 1.0
+
+    # Label smoothing for Bernoulli (gate / edge) and Categorical (role).
+    # Plackett-Luce sequence loss is NOT smoothed — it is listwise and the
+    # stochastic sampling already provides natural diversity.
+    sft_label_smoothing: float = 0.05      # 0/1 → 0.05/0.95 for Bernoulli;
+                                           # one-hot → (1-eps)·oh + eps/R for Cat
 
     # ---- GRPO (Stage 2) -----------------------------------------------------
     grpo_group_size: int = 4
@@ -107,12 +115,12 @@ class TrainSpec:
     grpo_entropy_weight: float = 0.01
 
     # ---- Reward shaping coefficients ---------------------------------------
-    # All in units that make a "correct" answer worth ~1.0 dominantly,
-    # and costs land in the [-0.3, 0] region for normal architectures.
-    reward_lambda_agent: float = 0.03      # cost per active agent
-    reward_lambda_edge: float = 0.005      # cost per active edge
-    reward_lambda_call: float = 0.01       # cost per LLM call (incl. inner loop + synth)
-    reward_lambda_token: float = 0.0       # off by default; enable for token-cost ablation
+    # Calibrated so a "correct" answer is worth ~1.0 dominantly, and the
+    # cost terms land in the [-0.3, 0] region for normal architectures.
+    reward_lambda_agent: float = 0.03      # per active agent
+    reward_lambda_edge: float = 0.005      # per active edge
+    reward_lambda_call: float = 0.01       # per LLM call (inner ReAct + synth)
+    reward_lambda_token: float = 0.0       # off by default; for token-cost ablation
 
 
 # ---------------------------------------------------------------------------

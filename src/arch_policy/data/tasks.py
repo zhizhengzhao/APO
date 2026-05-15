@@ -4,8 +4,12 @@ Sources supported:
   - synthetic       : zero-network bootstrap (3 toy task families)
   - gsm8k           : math word problems, # ANSWER convention
   - humaneval       : code completion, exec-based grading
+  - mbpp            : code completion, exec-based grading
   - math            : MATH benchmark, boxed-answer grading
-  - hotpotqa (TODO) : multi-hop QA, F1 grading
+  - mmlu            : 4-choice general knowledge
+  - bbh             : Big-Bench Hard, mixed reasoning
+  - arc             : ARC science reasoning, 4-choice
+  - mixed           : 6-source mix for SFT (gsm8k+math+humaneval+mmlu+bbh+arc)
 
 Each loaded sample carries (`task`, `gold_answer`, `family`, `task_id`,
 optional `metadata`). The metadata field is used by complex graders
@@ -115,13 +119,35 @@ def _extract_math_boxed(s: str) -> str:
     return s.strip()
 
 
+def _format_mc_question(question: str, choices: list[str], labels: list[str] | None = None) -> str:
+    """Render a multiple-choice question as a single text prompt.
+
+    `choices` are the option strings; `labels` are the answer letters
+    (defaults to A/B/C/...).
+    """
+    if labels is None:
+        labels = [chr(ord("A") + i) for i in range(len(choices))]
+    lines = [question.strip(), ""]
+    for lab, ch in zip(labels, choices):
+        lines.append(f"{lab}. {ch}")
+    lines.append("")
+    lines.append("Answer with the single letter.")
+    return "\n".join(lines)
+
+
 def load_huggingface(
-    dataset: Literal["gsm8k", "humaneval", "math"],
+    dataset: Literal["gsm8k", "humaneval", "mbpp", "math", "mmlu", "bbh", "arc"],
     split: str = "train",
     n: int | None = 200,
     seed: int = 0,
+    subset: str | None = None,
 ) -> list[TaskSample]:
-    """Load a benchmark via HuggingFace `datasets`. Requires internet (or HF cache)."""
+    """Load a benchmark via HuggingFace `datasets`. Requires internet (or HF cache).
+
+    `subset` (optional) lets you pick a sub-config for datasets that have many
+    (MMLU has 57 subjects, BBH has 27 tasks, ARC has 'ARC-Easy'/'ARC-Challenge').
+    Defaults pick a reasonable fallback.
+    """
     try:
         from datasets import load_dataset
     except ImportError as e:
@@ -148,8 +174,6 @@ def load_huggingface(
             ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
         out = []
         for i, row in enumerate(ds):
-            # The "task" is the prompt; the "gold_answer" is canonical_solution.
-            # For grading we exec the model output against `test` + `entry_point`.
             out.append(
                 TaskSample(
                     task=row["prompt"],
@@ -165,8 +189,29 @@ def load_huggingface(
             )
         return out
 
+    if dataset == "mbpp":
+        ds = load_dataset("mbpp", subset or "sanitized", split=split if split != "train" else "train")
+        if n is not None:
+            ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
+        out = []
+        for i, row in enumerate(ds):
+            test_list = row.get("test_list") or row.get("test") or []
+            tests = "\n".join(test_list) if isinstance(test_list, list) else str(test_list)
+            out.append(
+                TaskSample(
+                    task=row.get("text") or row.get("prompt") or "",
+                    gold_answer=row.get("code", ""),
+                    family="mbpp",
+                    task_id=f"mbpp_{row.get('task_id', i)}",
+                    metadata={
+                        "test": tests,
+                        "code": row.get("code", ""),
+                    },
+                )
+            )
+        return out
+
     if dataset == "math":
-        # The lighteval split layout — try a couple of common dataset ids.
         for ds_name in ("HuggingFaceH4/MATH-500", "lighteval/MATH"):
             try:
                 ds = load_dataset(ds_name, split=split if ds_name != "HuggingFaceH4/MATH-500" else "test")
@@ -194,7 +239,119 @@ def load_huggingface(
             )
         return out
 
-    raise NotImplementedError(f"dataset={dataset} not wired yet")
+    if dataset == "mmlu":
+        # MMLU has 57 subjects. Use the aggregated `cais/mmlu` "all" config and
+        # pick `n` random rows across subjects (more diverse than one subject).
+        config = subset or "all"
+        ds = load_dataset("cais/mmlu", config, split=split if split != "train" else "auxiliary_train")
+        if n is not None:
+            ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
+        out = []
+        for i, row in enumerate(ds):
+            choices = row["choices"]
+            answer_idx = int(row["answer"])
+            gold_letter = chr(ord("A") + answer_idx)
+            out.append(
+                TaskSample(
+                    task=_format_mc_question(row["question"], choices),
+                    gold_answer=gold_letter,
+                    family="mmlu",
+                    task_id=f"mmlu_{row.get('subject', 'all')}_{i}",
+                    metadata={
+                        "subject": row.get("subject"),
+                        "choices": choices,
+                        "answer_idx": answer_idx,
+                    },
+                )
+            )
+        return out
+
+    if dataset == "bbh":
+        # Big-Bench Hard has 27 tasks. We pick `n` rows from the chosen subset
+        # (default: "logical_deduction_three_objects" — one of the smaller, well-defined ones).
+        config = subset or "logical_deduction_three_objects"
+        ds = load_dataset("lukaemon/bbh", config, split="test")
+        if n is not None:
+            ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
+        out = []
+        for i, row in enumerate(ds):
+            out.append(
+                TaskSample(
+                    task=row["input"],
+                    gold_answer=row["target"].strip(),
+                    family=f"bbh_{config}",
+                    task_id=f"bbh_{config}_{i}",
+                    metadata={"subset": config},
+                )
+            )
+        return out
+
+    if dataset == "arc":
+        # ARC has Easy + Challenge; default Challenge (harder, ~1.2k test).
+        config = subset or "ARC-Challenge"
+        ds = load_dataset("allenai/ai2_arc", config, split=split if split != "train" else "train")
+        if n is not None:
+            ds = ds.shuffle(seed=seed).select(range(min(n, len(ds))))
+        out = []
+        for i, row in enumerate(ds):
+            choices = row["choices"]["text"]
+            labels = row["choices"]["label"]
+            out.append(
+                TaskSample(
+                    task=_format_mc_question(row["question"], choices, labels),
+                    gold_answer=row["answerKey"].strip(),
+                    family=f"arc_{config}",
+                    task_id=f"arc_{config}_{row['id']}",
+                    metadata={"subset": config, "choices": choices, "labels": labels},
+                )
+            )
+        return out
+
+    raise NotImplementedError(f"dataset={dataset!r} not wired yet")
+
+
+# ---------------------------------------------------------------------------
+# Mixed pool for SFT (6-source diversity)
+# ---------------------------------------------------------------------------
+
+# Default mix: ratio targets for an SFT task pool.
+# Tweak via `load_mixed`'s `ratios` arg if you want a different composition.
+DEFAULT_SFT_MIX = {
+    "gsm8k": 1500,
+    "math": 1000,
+    "humaneval": 800,    # actually capped at HumanEval's 164 unless you sample with replacement
+    "mmlu": 700,
+    "bbh": 500,
+    "arc": 500,
+}
+
+
+def load_mixed(
+    ratios: dict[str, int] | None = None,
+    *,
+    seed: int = 0,
+    sft_split: str = "train",
+) -> list[TaskSample]:
+    """Build a mixed SFT task pool from multiple sources.
+
+    `ratios`: maps dataset name → desired count. Defaults to DEFAULT_SFT_MIX
+    (5000 total). Each source is loaded independently then concatenated and
+    shuffled. If a source has fewer rows than requested, we just return all of
+    them (no oversampling).
+    """
+    if ratios is None:
+        ratios = DEFAULT_SFT_MIX
+    rng = random.Random(seed)
+    out: list[TaskSample] = []
+    for source, count in ratios.items():
+        try:
+            samples = load_huggingface(source, split=sft_split, n=count, seed=seed)
+        except Exception as e:
+            print(f"[load_mixed] WARNING skipping {source}: {e}")
+            continue
+        out.extend(samples)
+    rng.shuffle(out)
+    return out
 
 
 def split_pools(samples: list[TaskSample], n_sft: int, n_rl: int, seed: int = 11):
@@ -207,4 +364,11 @@ def split_pools(samples: list[TaskSample], n_sft: int, n_rl: int, seed: int = 11
     return pool[:n_sft], pool[n_sft : n_sft + n_rl]
 
 
-__all__ = ["TaskSample", "load_huggingface", "load_local_synthetic", "split_pools"]
+__all__ = [
+    "TaskSample",
+    "DEFAULT_SFT_MIX",
+    "load_huggingface",
+    "load_local_synthetic",
+    "load_mixed",
+    "split_pools",
+]

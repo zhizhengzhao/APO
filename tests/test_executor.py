@@ -29,16 +29,16 @@ def test_each_baseline_runs_with_mock():
         trace = ex.run(task="What is 6 times 7?", arch=arch)
         assert trace.messages, f"{name}: no messages"
         # Sequence length == #active and all messages come from active slots
-        assert len(trace.messages) == arch.n_active * trace.n_big_rounds_run
+        assert len(trace.messages) == arch.n_active * trace.n_cycles_run
         for m in trace.messages:
             assert arch.active_mask[m.slot].item(), f"{name}: speaker {m.slot} not active"
-        # Synth-DONE means we ran exactly 1 big round
-        assert trace.n_big_rounds_run == 1
+        # Synth-DONE means we ran exactly 1 cycle
+        assert trace.n_cycles_run == 1
         assert trace.final_via_synth
         assert trace.final_answer == "42"
 
 
-def test_continue_then_done_runs_two_rounds():
+def test_continue_then_done_runs_two_cycles():
     """If MockWorker returns CONTINUE first then ANSWER, executor should loop."""
     class ToggleSynthMock(Worker):
         def __init__(self):
@@ -56,9 +56,9 @@ def test_continue_then_done_runs_two_rounds():
 
     worker = ToggleSynthMock()
     ex = MultiAgentExecutor(worker=worker)
-    arch = get_baseline("solver_verifier")  # 2 actives → 2 mini-steps per round
+    arch = get_baseline("solver_verifier")  # 2 actives → 2 turns per cycle
     trace = ex.run("Q", arch)
-    assert trace.n_big_rounds_run == 2
+    assert trace.n_cycles_run == 2
     assert trace.final_via_synth
     assert trace.final_answer == "42"
     assert worker.synth_calls == 2
@@ -77,18 +77,18 @@ def test_safety_cap_uses_heuristic_fallback():
     worker = NeverDoneMock()
     # Lower the safety cap to keep test fast (dataclasses.replace works on frozen)
     from dataclasses import replace
-    spec = replace(ARCH, safety_max_big_rounds=2, safety_max_inner_rounds=2)
+    spec = replace(ARCH, safety_max_cycles=2, safety_max_steps=2)
     ex = MultiAgentExecutor(worker=worker, spec=spec)
     arch = get_baseline("solver_verifier")
     trace = ex.run("Q", arch)
-    assert trace.n_big_rounds_run == 2
+    assert trace.n_cycles_run == 2
     assert not trace.final_via_synth
     # Heuristic picks the latest 'Candidate: 99'
     assert "99" in trace.final_answer
 
 
 def test_react_inner_loop():
-    """An agent that asks for python_exec then finalizes runs 2 inner rounds."""
+    """An agent that asks for python_exec then finalizes runs 2 ReAct steps."""
     class ToolingMock(Worker):
         def __init__(self):
             self.n = 0
@@ -97,13 +97,13 @@ def test_react_inner_loop():
             if self.n == 1:
                 t = "THOUGHT: compute.\nACTION: python_exec\nARGS: print(2+3)"
             else:
-                t = "Computed: 5"
+                t = "Tested: pass; result 5"
             return WorkerOutput(text=t, n_input_tokens=20, n_output_tokens=8)
 
     worker = ToolingMock()
-    agent = Agent(slot=0, role="ToolUser", worker=worker, max_inner_rounds=4)
-    turn = agent.run("compute 2+3", incoming=[], big_round=0, mini_step=0, n_mini=1)
-    assert turn.n_inner_rounds == 2
+    agent = Agent(slot=0, role="Tester", worker=worker, max_steps=4)
+    turn = agent.run("compute 2+3", incoming=[], cycle=0, turn=0, n_turns=1)
+    assert turn.n_steps == 2
     assert turn.n_tool_calls == 1
     assert "5" in turn.text
     assert not turn.hit_cap

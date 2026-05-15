@@ -73,26 +73,28 @@ P(i_t \mid i_{<t}) = \frac{e^{s_{i_t}}}{\sum_{j \in \text{remaining}_t} e^{s_j}}
 
 ## 5. Executor
 
+命名约定：episode > cycle > turn > step。
+
 ```
-for big_round in 1 .. safety_max_big_rounds=20:
-  for slot in arch.sequence:        # PL permutation
+for cycle in 1 .. safety_max_cycles=20:
+  for slot in arch.sequence:        # PL permutation, length = #active
     incoming = msgs from slots with edge → slot
-    agent[slot].run(task, incoming)
+    agent[slot].run(task, incoming, cycle, turn)   # turn = 当前 slot 的位置
   
   verdict = synth.judge(task, transcript)
   if verdict.is_done: return verdict.answer
 ```
 
-### 5.1 Agent = ReAct inner loop
+### 5.1 Agent = ReAct inner loop (over `step`s)
 
 ```
-for inner_round in 1 .. 8:
+for step in 1 .. safety_max_steps=8:
   reply = worker.chat(role_prompt, task + incoming + scratchpad)
   if reply has "ACTION: <tool>":
     obs = call_tool(...)
     scratchpad += reply + "\nOBSERVATION:\n" + obs
   else:
-    return reply
+    return reply           # 这个 turn 的 final reply
 ```
 
 3 个 tool: `python_exec` (subprocess + 5s timeout) / `sympy_check` (sympy) / `web_search` (stub)。所有 role 都能用所有 tool。
@@ -113,7 +115,7 @@ DeepSeek API call，prompt 严格限制只能输 ANSWER:/CONTINUE。
 
 ### 5.3 Safety cap
 
-`safety_max_big_rounds=20`, `safety_max_inner_rounds=8`, `safety_max_tokens_per_call=2048`。**不是 head 输出参数** —— reward cost 项 (`-λ_c · #calls`) 教 head 提前停。
+`safety_max_cycles=20`, `safety_max_steps=8`, `safety_max_tokens_per_call=2048`。**不是 head 输出参数** —— reward cost 项 (`-λ_c · #calls`) 教 head 提前停。
 
 ---
 

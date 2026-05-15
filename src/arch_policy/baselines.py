@@ -14,11 +14,12 @@ import torch
 
 from .architecture.library import (
     CRITIC,
+    DECOMPOSER,
     PLANNER,
     REFINER,
     RESEARCHER,
     SOLVER,
-    TOOLUSER,
+    TESTER,
     VERIFIER,
     NamedArch,
     full_mesh,
@@ -141,10 +142,11 @@ def make_solver_critic_verifier() -> ConcreteArch:
     ))
 
 
-def make_tool_solver_verifier() -> ConcreteArch:
+def make_tester_solver_verifier() -> ConcreteArch:
+    """Tester drafts cases / runs code, Solver answers, Verifier confirms."""
     return _arch_from_named(NamedArch(
-        name="bl_tool_solver_verifier",
-        agents=[(0, TOOLUSER), (1, SOLVER), (2, VERIFIER)],
+        name="bl_tester_solver_verifier",
+        agents=[(0, TESTER), (1, SOLVER), (2, VERIFIER)],
         edges=[(0, 1), (1, 2), (0, 2)],
         sequence=[0, 1, 2],
     ))
@@ -155,6 +157,16 @@ def make_plan_solve_verify() -> ConcreteArch:
         name="bl_plan_solve_verify",
         agents=[(0, PLANNER), (1, SOLVER), (2, VERIFIER)],
         edges=[(0, 1), (1, 2), (0, 2)],
+        sequence=[0, 1, 2],
+    ))
+
+
+def make_programmer_tester_refiner() -> ConcreteArch:
+    """Solver writes code, Tester runs tests, Refiner integrates."""
+    return _arch_from_named(NamedArch(
+        name="bl_programmer_tester_refiner",
+        agents=[(0, SOLVER), (1, TESTER), (2, REFINER)],
+        edges=[(0, 1), (0, 2), (1, 2)],
         sequence=[0, 1, 2],
     ))
 
@@ -172,8 +184,9 @@ BASELINE_REGISTRY: dict[str, callable] = {
     "mesh_3": make_mesh_3,
     "debate_3": make_debate_3,
     "solver_critic_verifier": make_solver_critic_verifier,
-    "tool_solver_verifier": make_tool_solver_verifier,
+    "tester_solver_verifier": make_tester_solver_verifier,
     "plan_solve_verify": make_plan_solve_verify,
+    "programmer_tester_refiner": make_programmer_tester_refiner,
 }
 
 

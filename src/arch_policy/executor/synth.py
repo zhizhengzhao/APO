@@ -1,11 +1,11 @@
-"""Synth: the lightweight DONE/CONTINUE + answer-extraction judge (v3).
+"""Synth: the lightweight DONE/CONTINUE + answer-extraction judge.
 
-Design (per user spec):
+Design:
   - Synth must NOT do reasoning. It only outputs one of:
       ANSWER: <the final answer>
       CONTINUE
   - It is implemented as one LLM call to the same worker as the agents.
-  - Its cost (one call per big round) is included in the reward calculation.
+  - Its cost (one call per cycle) is included in the reward calculation.
 
 If Synth's output is malformed (neither ANSWER: nor CONTINUE), we fall back
 to "CONTINUE" + log a warning. This is a safety behavior, not a learned
@@ -53,7 +53,7 @@ class Synth:
         """Return verdict given task + transcript.
 
         `transcript_items` follows `format_full_transcript`'s schema:
-        list of (slot, role, big_round_idx, text).
+        list of (slot, role, cycle_idx, text).
         """
         user = (
             f"[Task]\n{task}\n\n"
@@ -113,12 +113,12 @@ def heuristic_extract(transcript_items: list[tuple[int, str, int, str]]) -> str:
     """
     # Reverse-scan for each prefix.
     for re_pat in (_REFINED_RE, _VERIFIED_RE, _COMPUTED_RE, _CANDIDATE_RE):
-        for slot, role, _br, text in reversed(transcript_items):
+        for _slot, _role, _cycle, text in reversed(transcript_items):
             m = re_pat.search(text)
             if m:
                 return m.group(1).strip().rstrip(".")
     # Fallback: the last non-empty line of the last message
-    for slot, role, _br, text in reversed(transcript_items):
+    for _slot, _role, _cycle, text in reversed(transcript_items):
         for line in reversed(text.strip().splitlines()):
             line = line.strip()
             if line:

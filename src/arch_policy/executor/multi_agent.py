@@ -1,14 +1,22 @@
-"""Multi-agent executor (v3 main loop):
+"""Multi-agent executor — main loop.
 
-  - Build one Agent per active slot (each is a ReAct sub-loop).
-  - Big-round loop:
-      for speaker_slot in arch.sequence:    # Plackett-Luce permutation of actives
-          incoming = msgs from slots with edge → speaker_slot
-          turn = agent.run(task, incoming, big_round, mini_step)
-          record turn; latest_message[speaker_slot] = turn.text
+Naming convention:
+  episode  — one full run of a task (one MultiAgentExecutor.run call)
+  cycle    — one full pass through the PL-sampled sequence
+  turn     — one agent's slot in a cycle (one Agent.run invocation)
+  step     — one LLM call inside a turn's ReAct loop
+
+Main loop:
+
+  for cycle in 1 .. safety_max_cycles:
+      for slot in arch.sequence:           # PL permutation of active slots
+          incoming = msgs from slots with edge → slot
+          turn_out = agent[slot].run(task, incoming, cycle, turn_idx)
+          record turn; latest_message[slot] = turn_out.text
       verdict = synth.judge(task, transcript)
       if verdict.is_done: final_answer = verdict.answer; break
-  - If we hit the safety cap with no DONE, fall back to heuristic extraction.
+
+  # safety cap reached → heuristic_extract from transcript
 
 Worker abstractions live here too: `Worker` (abstract), `MockWorker`,
 `HFWorker` (kept for offline/no-API testing). The OpenAI-compatible
@@ -51,7 +59,7 @@ class MockWorker(Worker):
 
     By default it returns a Solver-style 'Candidate: <fake_answer>' suffix.
     Pass `force_synth_done=True` to make it always reply 'ANSWER: <fake>' so
-    the executor terminates after one big round (great for fast smoke tests).
+    the executor terminates after one cycle (great for fast smoke tests).
     """
 
     def __init__(
@@ -75,12 +83,14 @@ class MockWorker(Worker):
                 suffix = f"Verified: {self.fake_answer}"
             elif "Refiner" in system:
                 suffix = f"Refined: {self.fake_answer}"
-            elif "ToolUser" in system:
-                suffix = f"Computed: {self.fake_answer}"
+            elif "Tester" in system:
+                suffix = f"TESTS RESULT: pass (mock); answer {self.fake_answer}"
             elif "Researcher" in system:
                 suffix = f"Findings: known facts say {self.fake_answer}"
             elif "Planner" in system:
                 suffix = "PLAN:\n  1. compute the answer\n  2. verify"
+            elif "Decomposer" in system:
+                suffix = "ACTIONS:\n  1. write down the formula\n  2. compute"
             elif "Critic" in system:
                 suffix = "Critique:\n  - looks fine"
             else:
@@ -142,16 +152,17 @@ class HFWorker(Worker):
 
 @dataclass
 class AgentMessage:
+    """One agent's final reply at one (cycle, turn) position."""
     slot: int
     role: str
-    big_round: int
-    mini_step: int
+    cycle: int
+    turn: int
     text: str
-    n_inner_rounds: int = 0
+    n_steps: int = 0              # how many ReAct steps were used in this turn
     n_tool_calls: int = 0
     n_input_tokens: int = 0
     n_output_tokens: int = 0
-    hit_inner_cap: bool = False
+    hit_step_cap: bool = False
 
 
 @dataclass
@@ -160,8 +171,8 @@ class ExecutionTrace:
     arch: ConcreteArch
     messages: list[AgentMessage] = field(default_factory=list)
     final_answer: str = ""
-    n_llm_calls: int = 0           # all worker.chat invocations (incl. inner + synth)
-    n_big_rounds_run: int = 0      # how many big rounds actually executed
+    n_llm_calls: int = 0           # all worker.chat invocations (incl. ReAct steps + synth)
+    n_cycles_run: int = 0          # how many cycles actually executed
     n_synth_calls: int = 0
     total_input_tokens: int = 0
     total_output_tokens: int = 0
@@ -203,15 +214,15 @@ class MultiAgentExecutor:
                 slot=slot,
                 role=role,
                 worker=self.worker,
-                max_inner_rounds=spec.safety_max_inner_rounds,
+                max_steps=spec.safety_max_steps,
                 max_new_tokens=self.max_new_tokens,
             )
 
         synth = Synth(self.worker, max_new_tokens=self.synth_max_new_tokens)
         latest_message: dict[int, AgentMessage] = {}
 
-        for big_round in range(spec.safety_max_big_rounds):
-            for mini_step, speaker_slot in enumerate(active_idx):
+        for cycle in range(spec.safety_max_cycles):
+            for turn_idx, speaker_slot in enumerate(active_idx):
                 agent = agents[speaker_slot]
                 # Gather incoming messages from slots with an edge → speaker
                 incoming: list[tuple[int, str, str]] = []
@@ -225,38 +236,38 @@ class MultiAgentExecutor:
                     src_role = spec.role_names[int(arch.roles[src].item())]
                     incoming.append((src, src_role, latest_message[src].text))
 
-                turn = agent.run(
+                turn_out = agent.run(
                     task=task,
                     incoming=incoming,
-                    big_round=big_round,
-                    mini_step=mini_step,
-                    n_mini=len(active_idx),
+                    cycle=cycle,
+                    turn=turn_idx,
+                    n_turns=len(active_idx),
                 )
 
                 am = AgentMessage(
                     slot=speaker_slot,
                     role=agent.role,
-                    big_round=big_round,
-                    mini_step=mini_step,
-                    text=turn.text,
-                    n_inner_rounds=turn.n_inner_rounds,
-                    n_tool_calls=turn.n_tool_calls,
-                    n_input_tokens=turn.n_input_tokens,
-                    n_output_tokens=turn.n_output_tokens,
-                    hit_inner_cap=turn.hit_cap,
+                    cycle=cycle,
+                    turn=turn_idx,
+                    text=turn_out.text,
+                    n_steps=turn_out.n_steps,
+                    n_tool_calls=turn_out.n_tool_calls,
+                    n_input_tokens=turn_out.n_input_tokens,
+                    n_output_tokens=turn_out.n_output_tokens,
+                    hit_step_cap=turn_out.hit_cap,
                 )
                 trace.messages.append(am)
                 latest_message[speaker_slot] = am
 
-                trace.n_llm_calls += turn.n_inner_rounds
-                trace.total_input_tokens += turn.n_input_tokens
-                trace.total_output_tokens += turn.n_output_tokens
+                trace.n_llm_calls += turn_out.n_steps
+                trace.total_input_tokens += turn_out.n_input_tokens
+                trace.total_output_tokens += turn_out.n_output_tokens
 
-            trace.n_big_rounds_run = big_round + 1
+            trace.n_cycles_run = cycle + 1
 
-            # Synth check after each big round
+            # Synth check after each cycle
             transcript_items = [
-                (m.slot, m.role, m.big_round, m.text) for m in trace.messages
+                (m.slot, m.role, m.cycle, m.text) for m in trace.messages
             ]
             verdict = synth.judge(task, transcript_items)
             trace.n_llm_calls += 1
@@ -270,7 +281,7 @@ class MultiAgentExecutor:
                 return trace
 
         # Hit safety cap → heuristic fallback
-        transcript_items = [(m.slot, m.role, m.big_round, m.text) for m in trace.messages]
+        transcript_items = [(m.slot, m.role, m.cycle, m.text) for m in trace.messages]
         trace.final_answer = heuristic_extract(transcript_items)
         trace.final_via_synth = False
         return trace

@@ -1,17 +1,17 @@
-"""A library of human-recognizable multi-agent architectures (v3).
+"""Library of human-recognizable multi-agent architectures.
 
-v3 design changes:
-  - Roles: 7 (Planner, Solver, Critic, Verifier, Refiner, Researcher, ToolUser).
-  - Sequence: a *permutation* of the active slot ids (length = #active).
-    Same speaker repeating is implemented at execution time via either:
-      (a) Agent ReAct inner loop (single agent thinks multiple times)
-      (b) Big-round repetition (the sequence cycles), terminated by Synth.
-    This keeps the representation clean and makes Plackett-Luce learning sound.
-  - No `weights` field, no aggregator role (Synth handles termination).
+Used as SFT teacher targets. Each task during SFT is paired with a uniformly
+random NamedArch from this library; per-epoch reshuffling means the head sees
+many (task, arch) combinations and learns the *manifold* of reasonable
+architectures rather than memorizing task→arch pairings.
 
-A `NamedArch` is a teacher prototype used as an SFT target. Each one is
-randomly paired with a task during SFT to teach the head "live in the manifold
-of reasonable architectures, regardless of the specific task".
+Conventions:
+  - 8 roles: Planner / Decomposer / Solver / Critic / Verifier / Refiner /
+    Researcher / Tester (defined in `config.py`)
+  - sequence is a permutation of active slot ids (length = #active, no repeats);
+    repeated speech is implemented at execution time via cycles (Synth-controlled)
+    or a single agent's ReAct steps inside its turn
+  - no `weights` field, no aggregator role — Synth handles termination
 """
 
 from __future__ import annotations
@@ -23,15 +23,16 @@ from ..config import ARCH
 
 # Convenience role aliases — index in ARCH.role_names.
 ROLE_TO_ID = {name: i for i, name in enumerate(ARCH.role_names)}
-PLANNER, SOLVER, CRITIC, VERIFIER, REFINER, RESEARCHER, TOOLUSER = (
-    ROLE_TO_ID["Planner"],
-    ROLE_TO_ID["Solver"],
-    ROLE_TO_ID["Critic"],
-    ROLE_TO_ID["Verifier"],
-    ROLE_TO_ID["Refiner"],
-    ROLE_TO_ID["Researcher"],
-    ROLE_TO_ID["ToolUser"],
-)
+PLANNER = ROLE_TO_ID["Planner"]
+DECOMPOSER = ROLE_TO_ID["Decomposer"]
+SOLVER = ROLE_TO_ID["Solver"]
+CRITIC = ROLE_TO_ID["Critic"]
+VERIFIER = ROLE_TO_ID["Verifier"]
+REFINER = ROLE_TO_ID["Refiner"]
+RESEARCHER = ROLE_TO_ID["Researcher"]
+TESTER = ROLE_TO_ID["Tester"]
+
+ROLE_POOL = (PLANNER, DECOMPOSER, SOLVER, CRITIC, VERIFIER, REFINER, RESEARCHER, TESTER)
 
 
 @dataclass
@@ -98,10 +99,20 @@ def full_mesh(active: list[int]) -> list[tuple[int, int]]:
 # -----------------------------------------------------------------------
 
 def core_library() -> list[NamedArch]:
-    """Curated set of named architectures spanning canonical patterns."""
+    """Curated set of named architectures spanning canonical patterns.
+
+    Coverage:
+      - 1-6 agent sizes
+      - all 8 roles appear in ≥3 archs each
+      - patterns: chain / loop / mesh / star / hierarchical / debate /
+        MoA / Plan-Solve-Verify / Programmer-Tester / Critic-Refiner-loop /
+        MAD-Judge / Researcher-Heavy / Verifier-Council
+    """
     archs: list[NamedArch] = []
 
-    # ----- single-agent (5) ------------------------------------------------
+    # =======================================================================
+    # Single agent (5)
+    # =======================================================================
     archs.append(NamedArch(
         name="single_solver",
         agents=[(0, SOLVER)], edges=[], sequence=[0],
@@ -111,14 +122,8 @@ def core_library() -> list[NamedArch]:
     archs.append(NamedArch(
         name="single_planner",
         agents=[(0, PLANNER)], edges=[], sequence=[0],
-        description="One Planner decomposes and answers.",
+        description="One Planner produces the answer (degenerate: plan = answer).",
         tags=("single",),
-    ))
-    archs.append(NamedArch(
-        name="single_tooluser",
-        agents=[(0, TOOLUSER)], edges=[], sequence=[0],
-        description="One ToolUser computes via tool calls.",
-        tags=("baseline", "single"),
     ))
     archs.append(NamedArch(
         name="single_verifier",
@@ -129,11 +134,19 @@ def core_library() -> list[NamedArch]:
     archs.append(NamedArch(
         name="single_researcher",
         agents=[(0, RESEARCHER)], edges=[], sequence=[0],
-        description="One Researcher gathers info then answers.",
+        description="One Researcher gathers info then summarizes.",
+        tags=("single",),
+    ))
+    archs.append(NamedArch(
+        name="single_tester",
+        agents=[(0, TESTER)], edges=[], sequence=[0],
+        description="One Tester writes & runs code to derive the answer.",
         tags=("single",),
     ))
 
-    # ----- 2-agent chains / loops (8) -------------------------------------
+    # =======================================================================
+    # 2-agent chains / loops (8)
+    # =======================================================================
     archs.append(NamedArch(
         name="solver_verifier",
         agents=[(0, SOLVER), (1, VERIFIER)],
@@ -147,7 +160,7 @@ def core_library() -> list[NamedArch]:
         agents=[(0, SOLVER), (1, CRITIC)],
         edges=[(0, 1), (1, 0)],
         sequence=[0, 1],
-        description="Solver and Critic exchange (loop via big-round repeat).",
+        description="Solver and Critic exchange (loop via cycle repeat).",
         tags=("loop",),
     ))
     archs.append(NamedArch(
@@ -167,11 +180,11 @@ def core_library() -> list[NamedArch]:
         tags=("chain",),
     ))
     archs.append(NamedArch(
-        name="tool_solver",
-        agents=[(0, TOOLUSER), (1, SOLVER)],
+        name="solver_tester_loop",
+        agents=[(0, SOLVER), (1, TESTER)],
         edges=[(0, 1), (1, 0)],
         sequence=[0, 1],
-        description="ToolUser computes, Solver reasons; iterate via big rounds.",
+        description="Solver writes; Tester runs tests; iterate via cycle repeat.",
         tags=("loop",),
     ))
     archs.append(NamedArch(
@@ -195,11 +208,13 @@ def core_library() -> list[NamedArch]:
         agents=[(0, SOLVER), (1, SOLVER)],
         edges=[],
         sequence=[0, 1],
-        description="Two parallel Solvers; Synth picks via majority.",
+        description="Two independent Solvers; Synth picks via majority.",
         tags=("ensemble",),
     ))
 
-    # ----- 3-agent (10) ---------------------------------------------------
+    # =======================================================================
+    # 3-agent (12)
+    # =======================================================================
     archs.append(NamedArch(
         name="plan_solve_verify",
         agents=[(0, PLANNER), (1, SOLVER), (2, VERIFIER)],
@@ -213,7 +228,7 @@ def core_library() -> list[NamedArch]:
         agents=[(0, SOLVER), (1, CRITIC), (2, VERIFIER)],
         edges=[(0, 1), (0, 2), (1, 2)],
         sequence=[0, 1, 2],
-        description="Solver heard by Critic and Verifier; Verifier last.",
+        description="Solver heard by Critic and Verifier.",
         tags=("chain",),
     ))
     archs.append(NamedArch(
@@ -233,11 +248,11 @@ def core_library() -> list[NamedArch]:
         tags=("ensemble",),
     ))
     archs.append(NamedArch(
-        name="tool_solver_verifier",
-        agents=[(0, TOOLUSER), (1, SOLVER), (2, VERIFIER)],
+        name="tester_solver_verifier",
+        agents=[(0, TESTER), (1, SOLVER), (2, VERIFIER)],
         edges=[(0, 1), (1, 2), (0, 2)],
         sequence=[0, 1, 2],
-        description="ToolUser computes, Solver reasons, Verifier checks.",
+        description="Tester drafts checks; Solver answers; Verifier confirms.",
         tags=("chain",),
     ))
     archs.append(NamedArch(
@@ -269,7 +284,7 @@ def core_library() -> list[NamedArch]:
         agents=[(0, SOLVER), (1, SOLVER), (2, SOLVER)],
         edges=full_mesh([0, 1, 2]),
         sequence=[0, 1, 2],
-        description="Three peer Solvers fully connected (debate).",
+        description="Three peer Solvers fully connected (Multi-Agent Debate).",
         tags=("mesh", "debate"),
     ))
     archs.append(NamedArch(
@@ -280,8 +295,26 @@ def core_library() -> list[NamedArch]:
         description="Critic frames concerns, Solver attempts, Refiner finalizes.",
         tags=("chain",),
     ))
+    archs.append(NamedArch(
+        name="planner_decomposer_solver",
+        agents=[(0, PLANNER), (1, DECOMPOSER), (2, SOLVER)],
+        edges=[(0, 1), (1, 2)],
+        sequence=[0, 1, 2],
+        description="Planner sets sub-steps; Decomposer atomizes; Solver executes.",
+        tags=("hierarchical",),
+    ))
+    archs.append(NamedArch(
+        name="programmer_tester_refiner",
+        agents=[(0, SOLVER), (1, TESTER), (2, REFINER)],
+        edges=[(0, 1), (0, 2), (1, 2)],
+        sequence=[0, 1, 2],
+        description="Solver writes code; Tester runs tests; Refiner fixes failures.",
+        tags=("programmer_tester",),
+    ))
 
-    # ----- 4-agent (8) ----------------------------------------------------
+    # =======================================================================
+    # 4-agent (10)
+    # =======================================================================
     archs.append(NamedArch(
         name="plan_research_solve_verify",
         agents=[(0, PLANNER), (1, RESEARCHER), (2, SOLVER), (3, VERIFIER)],
@@ -307,11 +340,11 @@ def core_library() -> list[NamedArch]:
         tags=("mesh",),
     ))
     archs.append(NamedArch(
-        name="tool_dual_solver_verifier",
-        agents=[(0, TOOLUSER), (1, SOLVER), (2, SOLVER), (3, VERIFIER)],
+        name="tester_dual_solver_verifier",
+        agents=[(0, TESTER), (1, SOLVER), (2, SOLVER), (3, VERIFIER)],
         edges=[(0, 1), (0, 2), (1, 3), (2, 3)],
         sequence=[0, 1, 2, 3],
-        description="ToolUser feeds two Solvers; Verifier reconciles.",
+        description="Tester drafts checks; two Solvers answer; Verifier reconciles.",
         tags=("ensemble",),
     ))
     archs.append(NamedArch(
@@ -346,8 +379,26 @@ def core_library() -> list[NamedArch]:
         description="Solver + 2 independent Critics + Verifier.",
         tags=("ensemble",),
     ))
+    archs.append(NamedArch(
+        name="mad_judge",
+        agents=[(0, SOLVER), (1, SOLVER), (2, SOLVER), (3, VERIFIER)],
+        edges=full_mesh([0, 1, 2]) + [(0, 3), (1, 3), (2, 3)],
+        sequence=[0, 1, 2, 3],
+        description="Three debater Solvers + Verifier as judge (MAD-Judge, Liang'23).",
+        tags=("debate", "judge"),
+    ))
+    archs.append(NamedArch(
+        name="critic_refiner_loop_4",
+        agents=[(0, SOLVER), (1, CRITIC), (2, REFINER), (3, VERIFIER)],
+        edges=[(0, 1), (1, 2), (2, 0), (2, 3)],
+        sequence=[0, 1, 2, 3],
+        description="Solver / Critic / Refiner iterate via cycles, Verifier checks at end.",
+        tags=("loop",),
+    ))
 
-    # ----- 5+ agent (4) ---------------------------------------------------
+    # =======================================================================
+    # 5-agent (5)
+    # =======================================================================
     archs.append(NamedArch(
         name="rich_5_full",
         agents=[(0, PLANNER), (1, RESEARCHER), (2, SOLVER), (3, VERIFIER), (4, REFINER)],
@@ -365,13 +416,41 @@ def core_library() -> list[NamedArch]:
         tags=("rich", "mesh"),
     ))
     archs.append(NamedArch(
-        name="rich_5_tool_team",
-        agents=[(0, TOOLUSER), (1, RESEARCHER), (2, SOLVER), (3, CRITIC), (4, VERIFIER)],
+        name="rich_5_tester_team",
+        agents=[(0, TESTER), (1, RESEARCHER), (2, SOLVER), (3, CRITIC), (4, VERIFIER)],
         edges=[(0, 2), (1, 2), (2, 3), (2, 4), (3, 4)],
         sequence=[0, 1, 2, 3, 4],
-        description="ToolUser + Researcher feed Solver; Critic + Verifier check.",
+        description="Tester + Researcher feed Solver; Critic + Verifier check.",
         tags=("rich",),
     ))
+    archs.append(NamedArch(
+        name="researcher_heavy",
+        agents=[(0, RESEARCHER), (1, RESEARCHER), (2, RESEARCHER), (3, SOLVER), (4, VERIFIER)],
+        edges=[(0, 3), (1, 3), (2, 3), (3, 4)],
+        sequence=[0, 1, 2, 3, 4],
+        description="Three Researchers gather different aspects → Solver → Verifier.",
+        tags=("rich", "ensemble"),
+    ))
+    archs.append(NamedArch(
+        name="verifier_council",
+        agents=[(0, SOLVER), (1, VERIFIER), (2, VERIFIER), (3, VERIFIER), (4, REFINER)],
+        edges=[(0, 1), (0, 2), (0, 3), (1, 4), (2, 4), (3, 4)],
+        sequence=[0, 1, 2, 3, 4],
+        description="One Solver checked by 3 independent Verifiers; Refiner aggregates.",
+        tags=("rich", "ensemble"),
+    ))
+    archs.append(NamedArch(
+        name="hierarchical_5",
+        agents=[(0, PLANNER), (1, DECOMPOSER), (2, SOLVER), (3, SOLVER), (4, REFINER)],
+        edges=[(0, 1), (1, 2), (1, 3), (2, 4), (3, 4)],
+        sequence=[0, 1, 2, 3, 4],
+        description="Planner → Decomposer → 2 Solver workers → Refiner (hierarchical).",
+        tags=("rich", "hierarchical"),
+    ))
+
+    # =======================================================================
+    # 6-agent (2)
+    # =======================================================================
     archs.append(NamedArch(
         name="rich_6_full",
         agents=[(0, PLANNER), (1, RESEARCHER), (2, SOLVER), (3, SOLVER), (4, CRITIC), (5, VERIFIER)],
@@ -379,6 +458,14 @@ def core_library() -> list[NamedArch]:
         sequence=[0, 1, 2, 3, 4, 5],
         description="Full 6-agent pipeline.",
         tags=("rich",),
+    ))
+    archs.append(NamedArch(
+        name="hierarchical_6",
+        agents=[(0, PLANNER), (1, DECOMPOSER), (2, SOLVER), (3, SOLVER), (4, TESTER), (5, REFINER)],
+        edges=[(0, 1), (1, 2), (1, 3), (2, 4), (3, 4), (2, 5), (3, 5), (4, 5)],
+        sequence=[0, 1, 2, 3, 4, 5],
+        description="Planner → Decomposer → 2 Solvers → Tester → Refiner.",
+        tags=("rich", "hierarchical"),
     ))
 
     for a in archs:
@@ -390,95 +477,94 @@ def core_library() -> list[NamedArch]:
 # Random perturbations of the core library (data augmentation for SFT)
 # -----------------------------------------------------------------------
 
-def random_perturbations(rng: random.Random, n_per_base: int = 1) -> list[NamedArch]:
-    """Generate small perturbations of the core library to diversify SFT."""
+def _perturb_one(rng: random.Random, base: NamedArch, k: int) -> NamedArch | None:
+    """Apply a few random mutations to `base` and return a valid NamedArch.
+
+    Mutations applied with independent probabilities:
+      - role swap on one slot
+      - one edge drop
+      - one edge add (between two distinct active slots)
+      - sequence shuffle (always — sequence is a permutation of actives)
+    """
+    agents = list(base.agents)
+    edges = list(base.edges)
+
+    # role swap
+    if rng.random() < 0.6 and agents:
+        idx = rng.randrange(len(agents))
+        slot, role = agents[idx]
+        new_role = rng.choice([r for r in ROLE_POOL if r != role])
+        agents[idx] = (slot, new_role)
+
+    # edge drop
+    if edges and rng.random() < 0.5:
+        edges.pop(rng.randrange(len(edges)))
+
+    # edge add (between two distinct active slots, no self-loop, no dup)
+    actives = [s for s, _ in agents]
+    if rng.random() < 0.5 and len(actives) >= 2:
+        for _ in range(5):
+            a = rng.choice(actives)
+            b = rng.choice(actives)
+            if a != b and (a, b) not in edges:
+                edges.append((a, b))
+                break
+
+    sequence = list(actives)
+    rng.shuffle(sequence)
+
+    try:
+        new = NamedArch(
+            name=f"{base.name}_perturb{k}",
+            agents=agents, edges=edges, sequence=sequence,
+            description=f"Perturbation of {base.name}",
+            tags=("perturbed",) + tuple(t for t in base.tags if t != "baseline"),
+        )
+        new.validate()
+        return new
+    except ValueError:
+        return None
+
+
+def random_perturbations(rng: random.Random, n_per_base: int = 3) -> list[NamedArch]:
+    """Generate `n_per_base` perturbations per (non-single) core arch."""
     out: list[NamedArch] = []
-    base = core_library()
-    role_pool = (PLANNER, SOLVER, CRITIC, VERIFIER, REFINER, RESEARCHER, TOOLUSER)
-
-    for arch in base:
+    for arch in core_library():
         if "single" in arch.tags:
-            continue  # singles are already minimal; perturbing is silly
+            continue
         for k in range(n_per_base):
-            agents = list(arch.agents)
-            edges = list(arch.edges)
-            sequence = list(arch.sequence)
-
-            # role swap (one slot)
-            if rng.random() < 0.5 and agents:
-                idx = rng.randrange(len(agents))
-                slot, role = agents[idx]
-                new_role = rng.choice([r for r in role_pool if r != role])
-                agents[idx] = (slot, new_role)
-
-            # edge drop
-            if edges and rng.random() < 0.5:
-                edges.pop(rng.randrange(len(edges)))
-
-            # edge add (pick two distinct active slots)
-            actives = [s for s, _ in agents]
-            if rng.random() < 0.5 and len(actives) >= 2:
-                tries = 0
-                while tries < 5:
-                    a = rng.choice(actives)
-                    b = rng.choice(actives)
-                    if a != b and (a, b) not in edges:
-                        edges.append((a, b))
-                        break
-                    tries += 1
-
-            # shuffle sequence (swap two positions)
-            if rng.random() < 0.5 and len(sequence) >= 2:
-                i, j = rng.sample(range(len(sequence)), 2)
-                sequence[i], sequence[j] = sequence[j], sequence[i]
-
-            # repair: sequence must be a permutation of actives
-            sequence = list(actives)
-            rng.shuffle(sequence)
-
-            try:
-                new = NamedArch(
-                    name=f"{arch.name}_perturb{k}",
-                    agents=agents,
-                    edges=edges,
-                    sequence=sequence,
-                    description=f"Perturbation of {arch.name}",
-                    tags=("perturbed",),
-                )
-                new.validate()
+            new = _perturb_one(rng, arch, k)
+            if new is not None:
                 out.append(new)
-            except ValueError:
-                continue
     return out
 
 
-def random_archs(rng: random.Random, n: int = 5) -> list[NamedArch]:
-    """A few completely random valid architectures."""
+def random_archs(rng: random.Random, n: int = 30) -> list[NamedArch]:
+    """Completely random valid architectures.
+
+    Each arch gets random size (2..n_max), random active slots, random roles,
+    ~40% edge density, random permutation as sequence.
+    """
     out: list[NamedArch] = []
-    role_pool = (PLANNER, SOLVER, CRITIC, VERIFIER, REFINER, RESEARCHER, TOOLUSER)
     for k in range(n):
         n_agents = rng.randint(2, ARCH.n_max)
         slots = sorted(rng.sample(range(ARCH.n_max), n_agents))
-        agents = [(s, rng.choice(role_pool)) for s in slots]
+        agents = [(s, rng.choice(ROLE_POOL)) for s in slots]
 
-        # Random edges (~40% density), no self-loop, between actives only
         edges: list[tuple[int, int]] = []
         for i in slots:
             for j in slots:
                 if i != j and rng.random() < 0.4:
                     edges.append((i, j))
 
-        # Sequence = random permutation of active slots
         sequence = list(slots)
         rng.shuffle(sequence)
 
         try:
             arch = NamedArch(
                 name=f"random_{k}",
-                agents=agents,
-                edges=edges,
-                sequence=sequence,
-                description="Random valid architecture",
+                agents=agents, edges=edges, sequence=sequence,
+                description="Random valid architecture.",
                 tags=("random",),
             )
             arch.validate()
@@ -489,19 +575,20 @@ def random_archs(rng: random.Random, n: int = 5) -> list[NamedArch]:
 
 
 def full_library(seed: int = 42) -> list[NamedArch]:
-    """Core + perturbations + random — full SFT target pool."""
+    """Core + perturbations + random — full SFT target pool (~200 entries)."""
     rng = random.Random(seed)
     return (
         core_library()
-        + random_perturbations(rng, n_per_base=1)
-        + random_archs(rng, n=8)
+        + random_perturbations(rng, n_per_base=3)
+        + random_archs(rng, n=30)
     )
 
 
 __all__ = [
     "NamedArch",
-    "PLANNER", "SOLVER", "CRITIC", "VERIFIER", "REFINER", "RESEARCHER", "TOOLUSER",
-    "ROLE_TO_ID",
+    "ROLE_TO_ID", "ROLE_POOL",
+    "PLANNER", "DECOMPOSER", "SOLVER", "CRITIC",
+    "VERIFIER", "REFINER", "RESEARCHER", "TESTER",
     "core_library",
     "full_library",
     "full_mesh",

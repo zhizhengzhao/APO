@@ -1,8 +1,7 @@
-"""Role prompts + Synth prompt + ReAct tool-call protocol (v3).
+"""Role prompts + Synth prompt + ReAct tool-call protocol.
 
 Layout:
-
-  - ROLE_SYSTEM_PROMPTS[role]: system prompt for each of the 7 roles
+  - ROLE_SYSTEM_PROMPTS[role]: system prompt for each of the 8 roles
   - REACT_INSTRUCTION: shared instructions on how to call tools
   - SYNTH_SYSTEM_PROMPT: prompt for the Synth (ANSWER:/CONTINUE judge)
   - format_incoming_messages / format_full_transcript: helpers
@@ -14,7 +13,10 @@ ReAct tool-call protocol (parsed by `executor/agent.py`):
     ARGS: <single-line or multi-line args>
 
 If no ACTION line is present, the response is treated as the agent's final
-output.
+output for this turn. This is a provisional convention — when wiring up a
+real worker API with native tool-calling support (e.g. OpenAI tool_calls),
+swap this format for the API's structured fields without changing the
+executor's outer loop.
 """
 
 from __future__ import annotations
@@ -41,6 +43,13 @@ ROLE_SYSTEM_PROMPTS: dict[str, str] = {
         " (2-4 concrete sub-steps) for how the team should solve it. Do NOT try"
         " to solve it yourself. End with exactly:\n"
         "  PLAN:\n  1. ...\n  2. ...\n  ..."
+        + REACT_INSTRUCTION
+    ),
+    "Decomposer": (
+        "You are a Decomposer agent. Take a sub-step (likely from a Planner) and"
+        " break it into a short list of atomic actions that a single agent can"
+        " complete in one turn. Do NOT solve the task yourself. End with exactly:\n"
+        "  ACTIONS:\n  1. ...\n  2. ...\n  ..."
         + REACT_INSTRUCTION
     ),
     "Solver": (
@@ -83,11 +92,11 @@ ROLE_SYSTEM_PROMPTS: dict[str, str] = {
         "  Findings: <one-paragraph summary>"
         + REACT_INSTRUCTION
     ),
-    "ToolUser": (
-        "You are a ToolUser agent. Solve computational sub-problems using tools"
-        " — python_exec for code, sympy_check for symbolic math, web_search for"
-        " facts. Then summarize the result for the team. End with exactly:\n"
-        "  Computed: <the result>"
+    "Tester": (
+        "You are a Tester agent. Write Python test cases that exercise the"
+        " candidate solutions (use python_exec to run them). Report which"
+        " candidates pass and which fail. End with exactly:\n"
+        "  TESTS RESULT: <pass/fail breakdown for each candidate>"
         + REACT_INSTRUCTION
     ),
 }
@@ -140,11 +149,11 @@ def format_incoming_messages(items: list[tuple[int, str, str]]) -> str:
 def format_full_transcript(messages: list[tuple[int, str, int, str]]) -> str:
     """Render the full discussion transcript for the Synth.
 
-    Each item is (slot, role, big_round_index, text).
+    Each item is (slot, role, cycle_index, text).
     """
     lines = ["[Discussion transcript]"]
-    for slot, role, round_idx, text in messages:
-        lines.append(f"-- Big round {round_idx + 1}, Agent {slot} ({role}):")
+    for slot, role, cycle_idx, text in messages:
+        lines.append(f"-- Cycle {cycle_idx + 1}, Agent {slot} ({role}):")
         lines.append(text.strip())
         lines.append("")
     return "\n".join(lines)

@@ -1,18 +1,22 @@
-"""SFT trainer for the architecture head (v3 typed losses).
+"""SFT trainer for the architecture head — typed losses with label smoothing.
 
 Loss decomposition::
 
     L = w_g · L_gate  +  w_Q · L_role  +  w_e · L_edge  +  w_s · L_seq
 
-  L_gate  = BCE on all N slots                    (target.gates ∈ {0,1})
-  L_role  = CE on active slots only                (target.roles ∈ {0..R-1})
-  L_edge  = BCE on active (i,j) pairs (no diag)    (target.edges ∈ {0,1})
-  L_seq   = Plackett-Luce NLL on the teacher perm  (target.seq, length=K)
+  L_gate  = BCE on all N slots, target smoothed 0/1 → 0.05/0.95
+  L_role  = CE on active slots only, target smoothed onehot → (1-eps)·oh + eps/R
+  L_edge  = BCE on active (i,j) pairs (no diag), target smoothed
+  L_seq   = Plackett-Luce NLL on the teacher perm — NOT smoothed
+            (PL is listwise; PL sampling already provides natural diversity)
 
-Note: there is NO KL term in v3 (the head is a fresh policy planner, not a
-language model that needs language-prior protection). Sigma collapse is not
-an issue here either, since each typed distribution is parameterized by its
-own logits — no shared (mu, sigma) Gaussian.
+Smoothing rationale: hard 0/1 SFT pulls the head toward NamedArch attractors
+sharply, which collapses the output distribution and hurts GRPO sample
+diversity. Smoothing 0.05 leaves enough margin around each attractor for
+GRPO to sample interpolations.
+
+Note: there is NO KL term (the head is a fresh policy planner, not a
+language model that needs language-prior protection).
 """
 
 from __future__ import annotations
@@ -38,47 +42,76 @@ from ..head.model import ArchitectureHead
 # Per-architecture typed loss
 # ---------------------------------------------------------------------------
 
+def _smooth_bernoulli(target: torch.Tensor, eps: float) -> torch.Tensor:
+    """0/1 → eps/(1-eps) for label smoothing."""
+    return target.float() * (1 - 2 * eps) + eps  # 0 → eps, 1 → 1 - eps
+
+
+def _smoothed_ce_from_onehot(
+    logits: torch.Tensor,
+    target_idx: torch.Tensor,
+    n_classes: int,
+    eps: float,
+) -> torch.Tensor:
+    """Cross-entropy with label smoothing (onehot → (1-eps)·oh + eps/R).
+
+    `logits` is [..., R] and `target_idx` is [...] long indices.
+    F.cross_entropy supports `label_smoothing` arg directly; this wraps for clarity.
+    """
+    return F.cross_entropy(
+        logits, target_idx, label_smoothing=eps, reduction="mean",
+    )
+
+
 def sft_loss_single(
     logits: ArchLogits,
     target: ArchTargets,
     spec: TrainSpec | None = None,
 ) -> dict[str, torch.Tensor]:
-    """Compute typed losses for one architecture.
+    """Compute typed losses for one architecture, with label smoothing.
 
     Returns a dict with components and `total`. All components are
     *averaged* per-element so they're roughly comparable in scale.
+
+    Smoothing only applied to BCE (gate/edge) and CE (role); PL (seq) is left
+    as a hard NLL since its listwise structure already provides diversity.
     """
     if spec is None:
         spec = TRAIN
 
+    eps = spec.sft_label_smoothing
     active = target.gates.bool()
-    target_gates_f = target.gates.float()
 
-    # ---- gate: BCE over all N slots ----------------------------------------
+    # ---- gate: BCE over all N slots, with label smoothing ------------------
+    smoothed_gates = _smooth_bernoulli(target.gates, eps)
     gate_loss = F.binary_cross_entropy_with_logits(
-        logits.gate_logits, target_gates_f, reduction="mean"
+        logits.gate_logits, smoothed_gates, reduction="mean",
     )
 
-    # ---- role: CE over active slots only -----------------------------------
+    # ---- role: CE over active slots only, with label smoothing -------------
     if active.any():
-        role_loss = F.cross_entropy(
-            logits.role_logits[active], target.roles[active], reduction="mean"
+        role_loss = _smoothed_ce_from_onehot(
+            logits.role_logits[active],
+            target.roles[active],
+            n_classes=logits.role_logits.shape[-1],
+            eps=eps,
         )
     else:
         role_loss = torch.zeros((), device=logits.gate_logits.device)
 
-    # ---- edge: BCE over active (i,j) pairs (no diag) -----------------------
+    # ---- edge: BCE over active (i,j) pairs (no diag), with smoothing -------
     pair = active_pair_mask(active)
     if pair.any():
+        smoothed_edges = _smooth_bernoulli(target.edges[pair], eps)
         edge_loss = F.binary_cross_entropy_with_logits(
             logits.edge_logits[pair],
-            target.edges[pair].float(),
+            smoothed_edges,
             reduction="mean",
         )
     else:
         edge_loss = torch.zeros((), device=logits.gate_logits.device)
 
-    # ---- seq: Plackett-Luce NLL, normalized by sequence length -------------
+    # ---- seq: Plackett-Luce NLL, NO smoothing ------------------------------
     if target.seq.numel() > 0:
         seq_loss = -log_prob_pl(logits.seq_scores, target.seq) / target.seq.numel()
     else:
