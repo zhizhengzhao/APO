@@ -14,8 +14,10 @@ Example::
 from __future__ import annotations
 
 from .architecture import (
+    ANSWERER_ROLES,
     ArchLogits,
     ArchTargets,
+    CANONICAL_FAMILIES,
     ConcreteArch,
     CRITIC,
     DECOMPOSER,
@@ -29,18 +31,20 @@ from .architecture import (
     TESTER,
     VERIFIER,
     active_pair_mask,
+    canonical_library,
     core_library,
     encode_library,
     encode_named_arch,
+    family_of,
     full_library,
     full_mesh,
+    imperfect_library,
     log_prob_edges,
     log_prob_gates,
     log_prob_joint,
     log_prob_pl,
     log_prob_roles,
     random_archs,
-    random_perturbations,
     sample_arch,
     sample_pl,
 )
@@ -106,12 +110,13 @@ __all__ = [
     # architecture
     "ArchLogits", "ArchTargets", "ConcreteArch", "NamedArch",
     "active_pair_mask",
-    "core_library", "encode_library", "encode_named_arch", "full_library", "full_mesh",
-    "random_archs", "random_perturbations",
+    "canonical_library", "core_library", "encode_library", "encode_named_arch",
+    "family_of", "full_library", "full_mesh", "imperfect_library", "random_archs",
     "sample_arch", "sample_pl",
     "log_prob_edges", "log_prob_gates", "log_prob_joint",
     "log_prob_pl", "log_prob_roles",
-    # role ids
+    # role / family metadata
+    "ANSWERER_ROLES", "CANONICAL_FAMILIES",
     "ROLE_TO_ID", "ROLE_POOL",
     "PLANNER", "DECOMPOSER", "SOLVER", "CRITIC",
     "VERIFIER", "REFINER", "RESEARCHER", "TESTER",

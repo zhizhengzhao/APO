@@ -120,7 +120,7 @@ def grpo_step(
         batch.task_texts,
         padding=True,
         truncation=True,
-        max_length=512,
+        max_length=spec.tokenizer_max_len,
         return_tensors="pt",
     )
     input_ids = enc["input_ids"].to(device)
@@ -153,9 +153,14 @@ def grpo_step(
                 rewards[g, b] = r.total
 
     # ---- advantage (group-relative) ----------------------------------------
-    baseline = rewards.mean(dim=0, keepdim=True)             # [1, B]
-    std = rewards.std(dim=0, keepdim=True).clamp_min(1e-6)   # [1, B]
-    advantage = ((rewards - baseline) / std).detach()         # [G, B]
+    # Use unbiased=False so that G==1 returns std=0 (not NaN from N-1 division)
+    # plus clamp_min to avoid divide-by-zero when all rewards in a group tie.
+    # G==1 is degenerate (no group baseline) and gives zero advantage; we still
+    # let the entropy bonus train the head, but training is much weaker — caller
+    # should use G >= 2 (default 4).
+    baseline = rewards.mean(dim=0, keepdim=True)                              # [1, B]
+    std = rewards.std(dim=0, unbiased=False, keepdim=True).clamp_min(1e-6)    # [1, B]
+    advantage = ((rewards - baseline) / std).detach()                          # [G, B]
 
     # ---- log_pi (differentiable through head logits) -----------------------
     log_pis = torch.zeros(G, B, device=device)
@@ -187,7 +192,7 @@ def grpo_step(
         "loss_pg": float(loss_pg.detach().item()),
         "entropy": float(h.detach().item()),
         "reward_mean": float(rewards.mean().item()),
-        "reward_std": float(rewards.std().item()),
+        "reward_std": float(rewards.std(unbiased=False).item()),
         "reward_max": float(rewards.max().item()),
         "reward_min": float(rewards.min().item()),
     }

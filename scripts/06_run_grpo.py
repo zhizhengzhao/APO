@@ -74,8 +74,10 @@ def main() -> int:
     ap.add_argument("--epochs", type=int, default=2)
     ap.add_argument("--lr", type=float, default=1e-5)
     ap.add_argument("--entropy_weight", type=float, default=0.01)
-    ap.add_argument("--max_seq_len", type=int, default=384)
-    ap.add_argument("--max_new_tokens", type=int, default=1024)
+    ap.add_argument("--max_seq_len", type=int, default=512,
+                    help="Max tokens for the head's tokenizer (TrainSpec.tokenizer_max_len)")
+    ap.add_argument("--max_new_tokens", type=int, default=2048,
+                    help="Max generated tokens per worker LLM call (ArchSpec.safety_max_tokens_per_call)")
 
     ap.add_argument("--out_dir", default="checkpoints/grpo")
     ap.add_argument("--save_every", type=int, default=20)
@@ -126,6 +128,7 @@ def main() -> int:
         grpo_lr=args.lr,
         grpo_batch_size=args.batch_size,
         grpo_entropy_weight=args.entropy_weight,
+        tokenizer_max_len=args.max_seq_len,
     )
 
     # --- Wandb ---

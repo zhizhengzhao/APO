@@ -22,7 +22,7 @@ backbone(task) → context h ∈ R^{d_h}
 U ∈ R^{N × d}                       # 每个 agent slot 的 latent
 
 gate_logits[i]    = w_g · U[i]                            (Bern)
-role_logits[i, r] = (W_Q · U[i])[r]                       (Cat-7)
+role_logits[i, r] = (W_Q · U[i])[r]                       (Cat-8)
 edge_logits[i,j]  = U[i]^T M U[j] / √d                    (latent space)
                   + softmax(role_logits)[i]^T B softmax(role_logits)[j]   (SBM)
                   + b0
@@ -31,10 +31,12 @@ seq_scores[i]     = w_s · U[i]                            (PL)
 
 4 个 head 共享 `U[i]` —— "slot i 该是什么 agent" 是一个整体语义，不该被拆成 4 个无关输出。
 
+8 个 role: Planner / Decomposer / Solver / Critic / Verifier / Refiner / Researcher / Tester（详细责任见 `config.ArchSpec.role_names`）。
+
 Edge 用 latent + SBM 双源：
 - `U M U^T` = Latent Space Network model (Hoff'02), agent 对的"个性 affinity"
 - `Q^T B Q` = Stochastic Block Model (Holland'81), role 对的"该不该连"
-- 训练完后 **B 矩阵 (7×7) 可读**：直接 heatmap 看出 "Critic→Solver=0.9 / Solver→Solver=0.2"，是 paper 的可解释性卖点
+- 训练完后 **B 矩阵 (8×8) 可读**：直接 heatmap 看出 "Critic→Solver=0.9 / Solver→Solver=0.2"，是 paper 的可解释性卖点
 
 参数量 ~100K 可训练，backbone frozen。
 
@@ -73,7 +75,7 @@ P(i_t \mid i_{<t}) = \frac{e^{s_{i_t}}}{\sum_{j \in \text{remaining}_t} e^{s_j}}
 
 ## 5. Executor
 
-命名约定：episode > cycle > turn > step。
+命名约定：episode > cycle > turn > step。一个 episode = `MultiAgentExecutor.run(task, arch)` 一整次执行；一个 cycle = 一次完整地遍历 PL 排列；一个 turn = 一个 slot 在 cycle 内一次发言；一个 step = ReAct 子循环里一次 LLM call。
 
 ```
 for cycle in 1 .. safety_max_cycles=20:
@@ -132,7 +134,9 @@ DeepSeek API call，prompt 严格限制只能输 ANSWER:/CONTINUE。
 | Edge BCE | 仅 active pair, 去对角 |
 | Seq PL-NLL / K | K = #active |
 
-Teacher = 73 个手编 NamedArch（`architecture/library.py`）。每 epoch reshuffle pairing，逼模型学"好架构 region"而不是"task A → arch X"死记。
+**Label smoothing** (`TrainSpec.sft_label_smoothing = 0.05`) 应用到 Bernoulli (gate / edge) 与 Categorical (role)：硬标签 0/1 → 0.05/0.95，one-hot → (1-ε)·oh + ε/R。**PL-NLL 不 smooth** —— listwise rank loss 与 stochastic sampling 已自带多样性。
+
+Teacher = 93 个 NamedArch（68 canonical / 15 imperfect / 10 random，见 `architecture/library.py`）。每 epoch reshuffle pairing，逼模型学"好架构 region"而不是"task A → arch X"死记。默认 `stratify_by_family=True` + `tier_ratio=(0.73, 0.16, 0.11)` 让每个 canonical family 等权采样，并维持库的 tier 占比。
 
 没有 KL：head 不是 LM，没有"语言能力"要保护。
 

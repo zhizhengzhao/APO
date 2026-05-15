@@ -14,7 +14,7 @@
 ```bash
 bash scripts/00_setup_env.sh        # conda env + deps + editable install
 conda activate arch_policy
-python scripts/02_smoke_test.py     # 24 PASS, no GPU / no API
+python scripts/02_smoke_test.py     # 26 PASS, no GPU / no API
 python scripts/01_download_models.py  # Qwen3-0.6B (~1.2 GB)
 ```
 
@@ -29,9 +29,13 @@ export OPENAI_BASE_URL="https://api.deepseek.com/v1"
 
 ```bash
 # Stage 1 SFT (本地训练，~1 hour 单卡)
+# 默认 family-stratified 采样 + tier_ratio 与库组成对齐 (0.73/0.16/0.11)
 python scripts/03_run_sft.py \
-  --tasks_source gsm8k --n_tasks 1500 --epochs 5 \
+  --tasks_source mixed --n_tasks 5000 --epochs 5 \
   --device cuda:0 --out_dir checkpoints/sft
+
+# 关掉 family-stratified 走 legacy uniform-over-entries（不推荐，仅消融）
+python scripts/03_run_sft.py --no-stratify_by_family ...
 
 # Stage 2 GRPO (烧 worker API)
 python scripts/06_run_grpo.py \
@@ -59,32 +63,34 @@ src/arch_policy/
   architecture/
     spec.py                 ArchLogits, ArchTargets typed dataclasses
     sampler.py              sample_arch + Plackett-Luce + 4 typed log_prob
-    library.py              30+ NamedArch prototypes (7 roles)
+    library.py              93 NamedArch (68 canonical / 15 imperfect / 10 random,
+                            33 canonical families, 8 roles)
     encoder.py              NamedArch → ArchTargets
-  head/model.py             latent agent embedding + 4 typed heads
+  head/model.py             latent agent embedding + 4 typed heads (gate/role/edge/seq)
   executor/
-    prompts.py              7 role prompts + ReAct + Synth
+    prompts.py              8 role prompts + ReAct + Synth
     tools.py                python_exec / sympy_check / web_search
-    agent.py                ReAct inner loop
+    agent.py                ReAct inner loop (over `step`s)
     synth.py                ANSWER:/CONTINUE judge
-    multi_agent.py          main exec loop
+    multi_agent.py          main exec loop (cycle → turn → step)
     openai_worker.py        DeepSeek / OpenAI API worker
-  data/                     GSM8K / MATH / HumanEval loaders + SFT dataset
+  data/                     6 benchmark loaders (GSM8K / MATH / HumanEval / MBPP /
+                            MMLU / BBH / ARC) + SFT dataset (family-stratified)
   reward/                   composite reward + family-aware grader
   training/
-    sft.py                  4 typed losses (BCE+CE+BCE+PL-NLL)
+    sft.py                  4 typed losses (BCE+CE+BCE+PL-NLL, label smoothing 0.05)
     grpo.py                 typed log_pi + entropy bonus, no KL
-  baselines.py              10 fixed-topology baselines
+  baselines.py              11 fixed-topology baselines
 
 scripts/
   00_setup_env.sh           conda env
   01_download_models.py     pull Qwen3-0.6B
-  02_smoke_test.py          24 CPU smoke tests
-  03_run_sft.py             Stage-1
+  02_smoke_test.py          26 CPU smoke tests
+  03_run_sft.py             Stage-1 (--stratify_by_family / --tier_ratio)
   04_inspect_head.py        decode head outputs
   05_evaluate.py            baseline / head eval
   06_run_grpo.py            Stage-2
 
-tests/                      24 unit tests
-configs/default.yaml        config snapshot
+tests/                      26 unit tests
+configs/default.yaml        config snapshot (kept in sync with config.py dataclasses)
 ```

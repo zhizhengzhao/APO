@@ -76,7 +76,7 @@
 
 - 几乎所有工作 "1 agent = 1 次 LLM call"。
 - 聚合普遍靠 "再调一次 LLM 写 summary"（多花成本 + 容易引入 bias）。
-- 终止靠固定 round 数，不学。
+- 终止靠固定 cycle / round 数（外部超参），不交给模型学。
 
 ---
 
@@ -94,7 +94,7 @@
 | AgentPrune / Dropout | dropout | × | prune | × | × | REINFORCE |
 | EIB-LEARNER | × | × | edge causal | × | × | REINFORCE |
 | **Graph-GRPO** | × | × | **edge GRPO** | × | × | edge-level GRPO |
-| **APO (ours)** | **gate Bern** | **role Cat (7)** | **latent + SBM** | **PL** | **ReAct + tools** | **typed-component GRPO** |
+| **APO (ours)** | **gate Bern** | **role Cat (8)** | **latent + SBM** | **PL** | **ReAct + tools** | **typed-component GRPO** |
 
 最值得直接对比的是 Graph-GRPO（2026 SOTA），算法路线最像（都是 GRPO）。一点关键差异：
 

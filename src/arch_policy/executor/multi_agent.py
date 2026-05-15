@@ -188,12 +188,18 @@ class MultiAgentExecutor:
         self,
         worker: "Worker",
         spec: ArchSpec | None = None,
-        max_new_tokens_per_call: int = 1024,
+        max_new_tokens_per_call: int | None = None,
         synth_max_new_tokens: int = 64,
     ) -> None:
         self.worker = worker
         self.spec = spec or ARCH
-        self.max_new_tokens = max_new_tokens_per_call
+        # Default to ArchSpec.safety_max_tokens_per_call so a single source of
+        # truth governs both the budget annotation and the actual call cap.
+        self.max_new_tokens = (
+            max_new_tokens_per_call
+            if max_new_tokens_per_call is not None
+            else self.spec.safety_max_tokens_per_call
+        )
         self.synth_max_new_tokens = synth_max_new_tokens
 
     # ------------------------------------------------------------------

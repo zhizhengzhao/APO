@@ -4,7 +4,7 @@
 # Design:
 #   - 8 roles (Planner / Decomposer / Solver / Critic / Verifier / Refiner /
 #     Researcher / Tester) — every role is defined by responsibility, not by
-#     means. There is no "ToolUser" role: any role can use any tool.
+#     means. Any role can call any tool (python_exec / sympy_check / web_search).
 #   - sequence = priority score per slot (Plackett-Luce, length = #active)
 #   - dynamic stopping via Synth (no fixed cycle cap exposed to head)
 #   - DeepSeek API as worker (head is the only thing trained)
@@ -45,7 +45,7 @@ train:
     lr: 1.0e-5
     batch_size: 4
     entropy_weight: 0.01     # NO KL term (head is fresh policy planner)
-    clip_eps: 0.2
+  tokenizer_max_len: 512     # both SFT and GRPO truncate task texts here
   reward:
     lambda_agent: 0.03
     lambda_edge: 0.005

@@ -61,7 +61,8 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--out_dir", default="checkpoints/sft")
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--max_seq_len", type=int, default=384)
+    ap.add_argument("--max_seq_len", type=int, default=512,
+                    help="Max tokens for the head's tokenizer (TrainSpec.tokenizer_max_len)")
     ap.add_argument("--dtype", default="bfloat16", choices=["bfloat16", "float16", "float32"])
     ap.add_argument("--stratify_by_family", action=argparse.BooleanOptionalAction,
                     default=True,

@@ -86,7 +86,7 @@ class Synth:
                 n_output_tokens=out.n_output_tokens,
             )
 
-        # Malformed — assume CONTINUE (the safer default; if all rounds
+        # Malformed — assume CONTINUE (the safer default; if all cycles
         # exhaust we'll fall back to a heuristic extractor at the executor level)
         return SynthVerdict(
             is_done=False, raw_output=text, malformed=True,

@@ -43,9 +43,8 @@ class ArchSpec:
 
     # Role names — index in this list == role id used everywhere.
     # Each role is defined by *responsibility*, not by *means*: any role can
-    # use any of the available tools (python_exec / sympy_check / web_search).
-    # That is why there is no "ToolUser" role — calling tools is a means, not
-    # a responsibility.
+    # call any of the available tools (python_exec / sympy_check / web_search)
+    # as needed during its ReAct turn. Tools are a capability, not a role.
     role_names: tuple[str, ...] = (
         "Planner",      # 0 — high-level decomposition (2-4 sub-steps)
         "Decomposer",   # 1 — sub-step → atomic actions doable in one turn
@@ -109,10 +108,15 @@ class TrainSpec:
     grpo_group_size: int = 4
     grpo_lr: float = 1e-5
     grpo_batch_size: int = 4
-    grpo_clip_eps: float = 0.2
 
     # No KL term. Entropy bonus only.
     grpo_entropy_weight: float = 0.01
+
+    # ---- Tokenization --------------------------------------------------------
+    # Both SFT and GRPO read the head's task tokenizer with this max length.
+    # Tasks from GSM8K / MATH / HumanEval are well under 512; larger settings
+    # are rarely useful and slow the head's frozen backbone forward pass.
+    tokenizer_max_len: int = 512
 
     # ---- Reward shaping coefficients ---------------------------------------
     # Calibrated so a "correct" answer is worth ~1.0 dominantly, and the

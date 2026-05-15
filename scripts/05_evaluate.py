@@ -128,7 +128,8 @@ def main() -> int:
     ap.add_argument("--worker_timeout", type=float, default=120.0)
     ap.add_argument("--mock_answer", default="42")
 
-    ap.add_argument("--max_new_tokens", type=int, default=1024)
+    ap.add_argument("--max_new_tokens", type=int, default=2048,
+                    help="Max generated tokens per worker LLM call (ArchSpec.safety_max_tokens_per_call)")
 
     ap.add_argument("--out_jsonl", required=True)
     ap.add_argument("--verbose", action="store_true")

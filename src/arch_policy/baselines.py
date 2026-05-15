@@ -58,7 +58,8 @@ def _arch_from_named(named: NamedArch) -> ConcreteArch:
 
 
 # ---------------------------------------------------------------------------
-# 9 fixed-topology baselines
+# 11 fixed-topology baselines covering canonical patterns reported by
+# MaAS / G-Designer / ARG-Designer / EvoMAC.
 # ---------------------------------------------------------------------------
 
 def make_single_agent() -> ConcreteArch:
@@ -124,7 +125,7 @@ def make_self_consistency_5() -> ConcreteArch:
 
 
 def make_debate_3() -> ConcreteArch:
-    """3 solvers fully connected — debate via big-round repeats."""
+    """3 solvers fully connected — debate via repeated cycles (Synth decides when to stop)."""
     return _arch_from_named(NamedArch(
         name="bl_debate_3",
         agents=[(0, SOLVER), (1, SOLVER), (2, SOLVER)],
