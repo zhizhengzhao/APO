@@ -4,7 +4,6 @@ from .agent import Agent, AgentTurnOutput, parse_tool_call
 from .multi_agent import (
     AgentMessage,
     ExecutionTrace,
-    HFWorker,
     MockWorker,
     MultiAgentExecutor,
     Worker,
@@ -19,7 +18,6 @@ __all__ = [
     "AgentMessage",
     "AgentTurnOutput",
     "ExecutionTrace",
-    "HFWorker",
     "MockWorker",
     "MultiAgentExecutor",
     "OpenAIWorker",

@@ -1,14 +1,14 @@
 # APO — Architecture Policy Optimization
 
-学一个 task-conditioned 的多智能体架构分布。Head 是个 LM (默认 Qwen3.5-9B；可换成 Qwen3-0.6B 做轻量 ablation)，输出 4 个 typed 概率分布；worker 是 OpenAI-compatible API（DeepSeek-V3 默认）。本地只训练 head。
+学一个 task-conditioned 的多智能体架构分布。**Head = Qwen3-4B 换 4 个 typed 概率分布头**（输出架构参数）；**Worker = DeepSeek V4-Pro API**（跑所有 agent 和 Synth）。本地只训练 head。
 
-V3.5 起 head 的 backbone **默认 trainable**，三种模式切换：
+Head backbone 默认 trainable（全参数 fine-tune via LoRA），三种模式：
 
-| 模式 | flag | trainable params (Qwen3.5-9B) | 单卡 mem | 适合场景 |
+| 模式 | flag | trainable params (Qwen3-4B) | 单卡 mem | 适合场景 |
 |---|---|---|---|---|
-| 全参数 fine-tune | `(default)` | ~9B | 80GB + GC | 卡多/卡大 |
-| LoRA | `--lora_rank 32` | ~50M | 24GB+ | 推荐：cheap、防 overfit |
-| 冻 backbone（V3 行为） | `--freeze_backbone` | ~1M | 任何卡 | head-only baseline |
+| LoRA（默认） | `--lora_rank 32` | ~60M | 24GB+ | 推荐：cheap、防 overfit |
+| 全参数 fine-tune | `--no-freeze_backbone --lora_rank 0` | ~4B | 80GB + GC | 大数据时 |
+| 冻 backbone | `--freeze_backbone` | ~2M typed heads | 任何卡 | head-only baseline |
 
 ![A multi-agent architecture is determined by 4 things](assets/fig1_four_things.png)
 
@@ -23,7 +23,7 @@ V3.5 起 head 的 backbone **默认 trainable**，三种模式切换：
 bash scripts/00_setup_env.sh        # conda env + deps + editable install
 conda activate arch_policy
 python scripts/02_smoke_test.py     # 26 PASS, no GPU / no API
-python scripts/01_download_models.py  # Qwen3.5-9B (~18 GB) — set HEAD_MODEL=Qwen/Qwen3-0.6B for the small one
+python scripts/01_download_models.py  # Qwen3-4B (~8 GB) — set HEAD_MODEL=Qwen/Qwen3-0.6B for smoke
 ```
 
 配 worker（DeepSeek 或任何 OpenAI-compatible）：
@@ -110,7 +110,7 @@ src/arch_policy/
 
 scripts/
   00_setup_env.sh           conda env
-  01_download_models.py     pull Qwen3.5-9B (override via HEAD_MODEL env)
+  01_download_models.py     pull Qwen3-4B (override via HEAD_MODEL env)
   02_smoke_test.py          26 CPU smoke tests
   03_run_sft.py             Stage-1 (--stratify_by_family / --tier_ratio)
   04_inspect_head.py        decode head outputs

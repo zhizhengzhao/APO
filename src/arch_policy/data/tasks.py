@@ -321,13 +321,17 @@ def load_huggingface(
 # HumanEval has only 164 rows total, so it always returns 164 here.
 # MBPP sanitized has ~974 rows; ARC-Challenge train ~1.1k; BBH per-task ~250.
 DEFAULT_SFT_MIX = {
-    "gsm8k":     1500,   # train ~7.5k → 1500
-    "math":      1000,   # MATH-500 fallback to lighteval/MATH train if available
-    "humaneval":  164,   # full set (all 164 problems)
-    "mbpp":       800,   # train ~974 → 800
-    "mmlu":       700,   # auxiliary_train ~100k → 700
-    "bbh":        500,   # one subset ~250; load 2 subsets via repeated calls if needed
-    "arc":        500,   # ARC-Challenge train ~1.1k → 500
+    # Goal: ~10K diverse task wordings for SFT. We don't need balance —
+    # each task is randomly paired with a NamedArch (no semantic
+    # task→architecture grounding at SFT). Just maximize wording variety
+    # so the head sees the breadth of input distributions before GRPO.
+    "gsm8k":     5000,   # math word problems (full train ~7473)
+    "mmlu":      2967,   # broad-knowledge MC (full ~99k; 3k is plenty)
+    "arc":       1119,   # ARC-Challenge train, max
+    "math":       500,   # MATH-500 (max under our loader)
+    "bbh":        250,   # BBH single subset, max under our loader
+    "humaneval":  164,   # full HumanEval, max
+    "mbpp":       120,   # MBPP sanitized, max under our loader
 }
 
 

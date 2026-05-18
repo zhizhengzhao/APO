@@ -22,7 +22,7 @@ architecture:
   safety_max_tokens_per_call: 2048
 
 models:
-  head: "Qwen/Qwen3.5-9B"
+  head: "Qwen/Qwen3-4B"
   head_dtype: bfloat16
   # Trainability mode (set via CLI flags on 03_run_sft.py):
   #   default (full FT)         : freeze_backbone=False, lora_rank=0

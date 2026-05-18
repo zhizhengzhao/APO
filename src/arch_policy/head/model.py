@@ -71,7 +71,7 @@ class ArchitectureHead(nn.Module):
     """Wraps a causal LM and adds a 4-typed-head architecture policy.
 
     Args:
-        backbone_name: HF model id (e.g. "Qwen/Qwen3.5-9B").
+        backbone_name: HF model id (e.g. "Qwen/Qwen3-4B").
         arch_spec: dimension layout for the output tensors.
         head_cfg: head MLP config.
         freeze_backbone: if True the backbone receives no gradients (lightest).
@@ -119,9 +119,16 @@ class ArchitectureHead(nn.Module):
         from transformers import AutoConfig, AutoModel  # lazy import
 
         self.config = AutoConfig.from_pretrained(backbone_name, trust_remote_code=True)
+        # transformers 5.x renamed `torch_dtype` → `dtype`; old name still works
+        # in 4.x (with a DeprecationWarning) and is gone in 5.x. Probe and pick.
+        try:
+            from inspect import signature
+            kw = "dtype" if "dtype" in signature(AutoModel.from_pretrained).parameters else "torch_dtype"
+        except Exception:
+            kw = "torch_dtype"
         self.backbone = AutoModel.from_pretrained(
             backbone_name,
-            torch_dtype=torch_dtype_obj,
+            **{kw: torch_dtype_obj},
             trust_remote_code=True,
         )
 
@@ -185,7 +192,29 @@ class ArchitectureHead(nn.Module):
             except Exception as e:
                 print(f"[head] gradient checkpointing setup warning: {e}")
 
-        hidden = int(getattr(self.config, "hidden_size"))
+        # Multimodal configs (e.g. Qwen3.5) put hidden_size inside text_config /
+        # language_model. Fall back through the candidates; ultimately query the
+        # loaded backbone's config which always exposes hidden_size on the actual
+        # encoder used.
+        def _resolve_hidden(cfg) -> int | None:
+            for path in (
+                lambda c: getattr(c, "hidden_size", None),
+                lambda c: getattr(getattr(c, "text_config", None), "hidden_size", None),
+                lambda c: getattr(getattr(c, "language_model", None), "hidden_size", None),
+            ):
+                v = path(cfg)
+                if v is not None:
+                    return int(v)
+            return None
+        hidden = (
+            _resolve_hidden(self.config)
+            or _resolve_hidden(getattr(self.backbone, "config", self.config))
+        )
+        if hidden is None:
+            raise RuntimeError(
+                f"Could not resolve hidden_size from {backbone_name}'s config "
+                "(checked top-level, text_config, language_model, and backbone.config)."
+            )
         N = arch_spec.n_max
         R = arch_spec.k_roles
         d = arch_spec.d_latent

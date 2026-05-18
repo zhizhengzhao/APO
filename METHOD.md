@@ -3,7 +3,7 @@
 ## 1. 整体
 
 ```
-task → head (Qwen3.5-9B + 4 typed heads) → 4 typed logits
+task → head (Qwen3-4B + 4 typed heads) → 4 typed logits
     → sample_arch → ConcreteArch
     → executor: PL-permutation 调度 + ReAct agents + Synth
     → reward
@@ -44,7 +44,7 @@ Edge 用 latent + SBM 双源：
 
 ### 2.1 三种 trainability mode
 
-| mode | flags | trainable params (Qwen3.5-9B) | 说明 |
+| mode | flags | trainable params (Qwen3-4B) | 说明 |
 |---|---|---|---|
 | 全 FT (默认 V3.5) | `(默认)` | ~9B (backbone + heads) | 最强；80GB+gradient checkpointing 可装 |
 | LoRA (推荐) | `--lora_rank 32` | ~50M (LoRA on q/k/v/o + MLP + heads) | 24GB 卡可跑；适合 9B + 5K SFT samples 防 overfit |

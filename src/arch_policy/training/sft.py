@@ -261,7 +261,24 @@ def train_sft(
     optim = torch.optim.AdamW(
         [p for p in model.parameters() if p.requires_grad],
         lr=spec.sft_lr,
+        weight_decay=0.01,
     )
+
+    # Linear warmup → cosine decay. Total step count is approximate (depends on
+    # the loader length and grad_accum); we set it from the loader.
+    total_steps = max(1, len(train_loader) * spec.sft_epochs // max(1, spec.sft_grad_accum))
+    if spec.sft_max_steps is not None:
+        total_steps = min(total_steps, spec.sft_max_steps)
+    warmup_steps = max(1, int(total_steps * spec.sft_warmup_ratio))
+    try:
+        from transformers import get_cosine_schedule_with_warmup
+        scheduler = get_cosine_schedule_with_warmup(
+            optim, num_warmup_steps=warmup_steps, num_training_steps=total_steps,
+        )
+        print(f"[sft] cosine schedule: warmup={warmup_steps} / total={total_steps}")
+    except Exception as e:
+        print(f"[sft] schedule unavailable ({e}); using constant LR.")
+        scheduler = None
 
     history: list[dict] = []
     best_eval_loss: float | None = None
@@ -288,6 +305,8 @@ def train_sft(
                     max_norm=1.0,
                 )
                 optim.step()
+                if scheduler is not None:
+                    scheduler.step()
                 optim.zero_grad(set_to_none=True)
 
             if step % log_every == 0:

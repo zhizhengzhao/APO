@@ -18,9 +18,9 @@ Main loop:
 
   # safety cap reached → heuristic_extract from transcript
 
-Worker abstractions live here too: `Worker` (abstract), `MockWorker`,
-`HFWorker` (kept for offline/no-API testing). The OpenAI-compatible
-worker for DeepSeek lives in `openai_worker.py`.
+Worker abstractions live here too: `Worker` (abstract), `MockWorker`
+(for tests). The OpenAI-compatible worker for DeepSeek lives in
+`openai_worker.py`.
 """
 
 from __future__ import annotations
@@ -103,46 +103,6 @@ class MockWorker(Worker):
             text=text,
             n_input_tokens=len((system + user).split()),
             n_output_tokens=len(text.split()),
-        )
-
-
-# ---------------------------------------------------------------------------
-# HF transformers worker (kept for offline/local-only experiments)
-# ---------------------------------------------------------------------------
-
-class HFWorker(Worker):
-    """Generate via a HuggingFace transformers model. Slow, no extra deps."""
-
-    def __init__(self, model, tokenizer, *, device: str | None = None) -> None:
-        self.model = model
-        self.tokenizer = tokenizer
-        self.device = device or next(model.parameters()).device
-
-    def chat(self, system: str, user: str, max_new_tokens: int = 512) -> WorkerOutput:
-        import torch
-
-        messages = [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ]
-        prompt = self.tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
-        )
-        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
-        n_in = int(inputs["input_ids"].shape[-1])
-        with torch.no_grad():
-            output_ids = self.model.generate(
-                **inputs,
-                max_new_tokens=max_new_tokens,
-                do_sample=False,
-                pad_token_id=self.tokenizer.pad_token_id or self.tokenizer.eos_token_id,
-            )
-        new_tokens = output_ids[0, n_in:]
-        text = self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
-        return WorkerOutput(
-            text=text,
-            n_input_tokens=n_in,
-            n_output_tokens=int(new_tokens.shape[-1]),
         )
 
 
@@ -282,7 +242,15 @@ class MultiAgentExecutor:
             trace.total_output_tokens += verdict.n_output_tokens
             trace.synth_log.append(verdict.raw_output)
             if verdict.is_done:
-                trace.final_answer = verdict.answer
+                # For code answers, Synth's terse "ANSWER: X" loses the body.
+                # Check the transcript for a code-block Candidate/Verified/Refined
+                # marker; if found, prefer it over Synth's short string.
+                items = [(m.slot, m.role, m.cycle, m.text) for m in trace.messages]
+                code_answer = heuristic_extract(items)
+                if code_answer.startswith("```python"):
+                    trace.final_answer = code_answer
+                else:
+                    trace.final_answer = verdict.answer
                 trace.final_via_synth = True
                 return trace
 
@@ -296,7 +264,6 @@ class MultiAgentExecutor:
 __all__ = [
     "AgentMessage",
     "ExecutionTrace",
-    "HFWorker",
     "MockWorker",
     "MultiAgentExecutor",
     "Worker",

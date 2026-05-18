@@ -50,6 +50,13 @@ class OpenAIWorker(Worker):
     max_retries: int = 4
     retry_initial_delay: float = 2.0
 
+    # DeepSeek V4 uses an internal CoT (reasoning_content) by default. For our
+    # ReAct agents we usually want plain `.content` only, since the role
+    # prompts already structure step-by-step reasoning. Pass
+    # `extra_body={"thinking": {"type": "disabled"}}` to disable V4 thinking.
+    # For other providers leave None.
+    extra_body: Optional[dict] = None
+
     # internal: lazily-initialized OpenAI client
     _client: Optional[object] = field(default=None, init=False, repr=False)
 
@@ -84,7 +91,7 @@ class OpenAIWorker(Worker):
 
         for attempt in range(self.max_retries):
             try:
-                resp = client.chat.completions.create(
+                kw = dict(
                     model=self.model,
                     messages=[
                         {"role": "system", "content": system},
@@ -93,8 +100,18 @@ class OpenAIWorker(Worker):
                     max_tokens=max_new_tokens,
                     temperature=self.temperature,
                 )
+                if self.extra_body is not None:
+                    kw["extra_body"] = self.extra_body
+                resp = client.chat.completions.create(**kw)
                 choice = resp.choices[0]
+                # `content` is the user-facing answer. For DeepSeek V4 with
+                # thinking enabled, the CoT lives in `reasoning_content`; we
+                # only return `.content`. If content is empty (e.g. budget
+                # exhausted by thinking), fall back to a clipped reasoning.
                 text = (choice.message.content or "").strip()
+                if not text:
+                    rc = getattr(choice.message, "reasoning_content", None) or ""
+                    text = rc.strip()[:1024]   # clip very long reasoning
                 usage = resp.usage
                 in_tokens = int(getattr(usage, "prompt_tokens", 0))
                 out_tokens = int(getattr(usage, "completion_tokens", 0))

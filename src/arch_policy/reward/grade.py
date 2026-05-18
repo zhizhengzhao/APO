@@ -11,12 +11,10 @@ in [0, 1] (we mostly use 0/1 but keep it continuous-friendly).
 
 from __future__ import annotations
 
-import contextlib
-import io
-import multiprocessing as mp
 import re
-import signal
+import subprocess
 import sys
+import textwrap
 from typing import Any
 
 # ---------------------------------------------------------------------------
@@ -134,31 +132,27 @@ def grade_math(prediction: str, gold: str) -> float:
 # ---------------------------------------------------------------------------
 
 def _exec_with_timeout(code: str, timeout: float = 10.0) -> tuple[bool, str]:
-    """Exec `code` in a fresh process with a timeout. Returns (passed, message)."""
+    """Exec `code` in a fresh subprocess with a wall-clock timeout.
 
-    def _target(code_str, q):
-        try:
-            buf_out = io.StringIO()
-            buf_err = io.StringIO()
-            with contextlib.redirect_stdout(buf_out), contextlib.redirect_stderr(buf_err):
-                exec_globals: dict[str, Any] = {"__name__": "__main__"}
-                exec(code_str, exec_globals)  # noqa: S102 — sandboxed via subprocess
-            q.put((True, ""))
-        except Exception as e:  # noqa: BLE001
-            q.put((False, f"{type(e).__name__}: {e}"))
-
-    ctx = mp.get_context("spawn")
-    q: "mp.Queue[tuple[bool, str]]" = ctx.Queue()
-    p = ctx.Process(target=_target, args=(code, q))
-    p.start()
-    p.join(timeout)
-    if p.is_alive():
-        p.terminate()
-        p.join(1.0)
+    Uses subprocess.Popen so we do NOT re-import the calling module (which
+    multiprocessing.spawn does, and which is catastrophic when the caller
+    is a training script that loads multi-GB models at import time).
+    Returns (passed, message). `passed` is True iff the subprocess exits 0.
+    """
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True, text=True, timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
         return False, "timeout"
-    if not q.empty():
-        return q.get()
-    return False, "no output"
+    except Exception as e:  # noqa: BLE001
+        return False, f"{type(e).__name__}: {e}"
+    if proc.returncode == 0:
+        return True, ""
+    err = (proc.stderr or proc.stdout or "").strip().splitlines()
+    last = err[-1] if err else "non-zero exit"
+    return False, last[:200]
 
 
 def _extract_python_code(prediction: str) -> str:

@@ -4,12 +4,12 @@ Run once after the env is set up. This avoids surprises during training.
 
     python scripts/01_download_models.py
 
-Override the model with HEAD_MODEL env var:
+Override with HEAD_MODEL env var:
 
-    HEAD_MODEL=Qwen/Qwen3-1.7B python scripts/01_download_models.py
+    HEAD_MODEL=Qwen/Qwen3-0.6B python scripts/01_download_models.py
 
-Note: the worker LLM is NOT downloaded — agents and Synth talk to a remote
-OpenAI-compatible API (DeepSeek by default; see README §4).
+The HEAD is the only model we download — agents and Synth use a remote
+OpenAI-compatible chat API (DeepSeek V4 by default, see README).
 """
 
 from __future__ import annotations
@@ -24,9 +24,8 @@ def main() -> int:
         os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
     print(f"Using HF endpoint: {os.environ.get('HF_ENDPOINT')}")
 
-    head = os.environ.get("HEAD_MODEL", "Qwen/Qwen3.5-9B")
+    head = os.environ.get("HEAD_MODEL", "Qwen/Qwen3-4B")
     print(f"Downloading head backbone: {head}")
-    print("(Tip: set HEAD_MODEL=Qwen/Qwen3-0.6B for the lightweight smoke test.)")
 
     try:
         from huggingface_hub import snapshot_download

@@ -28,7 +28,7 @@ from arch_policy.training.sft import load_head_checkpoint
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--ckpt", required=True)
-    ap.add_argument("--head_model", default="Qwen/Qwen3.5-9B")
+    ap.add_argument("--head_model", default="Qwen/Qwen3-4B")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--n_tasks", type=int, default=4)
     ap.add_argument("--seed", type=int, default=0)

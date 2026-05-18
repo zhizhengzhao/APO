@@ -32,30 +32,24 @@ def _build_worker(args):
         return MockWorker(fake_answer=args.mock_answer)
     if args.worker == "openai":
         from arch_policy import OpenAIWorker
+        extra = None
+        if "deepseek" in (args.worker_model or "").lower():
+            extra = {"thinking": {"type": "disabled"}}
         return OpenAIWorker(
             model=args.worker_model,
             api_key=os.environ.get("OPENAI_API_KEY"),
             base_url=os.environ.get("OPENAI_BASE_URL"),
             temperature=args.worker_temperature,
             timeout=args.worker_timeout,
+            extra_body=extra,
         )
-    if args.worker == "hf":
-        from transformers import AutoModelForCausalLM, AutoTokenizer
-        from arch_policy import HFWorker
-        tok = AutoTokenizer.from_pretrained(args.worker_model)
-        if tok.pad_token_id is None:
-            tok.pad_token = tok.eos_token
-        mdl = AutoModelForCausalLM.from_pretrained(
-            args.worker_model, torch_dtype="bfloat16", device_map="auto",
-        )
-        return HFWorker(model=mdl, tokenizer=tok)
     raise ValueError(args.worker)
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--head_ckpt", required=True)
-    ap.add_argument("--head_model", default="Qwen/Qwen3.5-9B")
+    ap.add_argument("--head_model", default="Qwen/Qwen3-4B")
     ap.add_argument("--head_dtype", default="bfloat16", choices=["bfloat16", "float16", "float32"])
     ap.add_argument("--head_device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--freeze_backbone", action=argparse.BooleanOptionalAction, default=False,
@@ -72,7 +66,7 @@ def main() -> int:
     ap.add_argument("--split", default="train")
     ap.add_argument("--n", type=int, default=200, help="number of training tasks")
 
-    ap.add_argument("--worker", choices=["mock", "openai", "hf"], default="openai")
+    ap.add_argument("--worker", choices=["mock", "openai"], default="openai")
     ap.add_argument("--worker_model", default="deepseek-chat")
     ap.add_argument("--worker_temperature", type=float, default=0.0)
     ap.add_argument("--worker_timeout", type=float, default=120.0)

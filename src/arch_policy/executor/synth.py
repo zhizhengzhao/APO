@@ -99,19 +99,43 @@ class Synth:
 # Heuristic fallback extractor used when we hit the safety cap with no DONE
 # ---------------------------------------------------------------------------
 
+# Inline (single-line) markers
 _VERIFIED_RE = re.compile(r"Verified\s*:\s*(.+?)(?:\n|$)", re.IGNORECASE)
 _REFINED_RE = re.compile(r"Refined\s*:\s*(.+?)(?:\n|$)", re.IGNORECASE)
 _CANDIDATE_RE = re.compile(r"Candidate\s*:\s*(.+?)(?:\n|$)", re.IGNORECASE)
 _COMPUTED_RE = re.compile(r"Computed\s*:\s*(.+?)(?:\n|$)", re.IGNORECASE)
+# Multi-line code-block variant: "Candidate:\n```python\n...\n```"
+_VERIFIED_CODE_RE = re.compile(
+    r"Verified\s*:\s*\n?\s*```(?:python|py)?\s*\n(.*?)```",
+    re.IGNORECASE | re.DOTALL,
+)
+_REFINED_CODE_RE = re.compile(
+    r"Refined\s*:\s*\n?\s*```(?:python|py)?\s*\n(.*?)```",
+    re.IGNORECASE | re.DOTALL,
+)
+_CANDIDATE_CODE_RE = re.compile(
+    r"Candidate\s*:\s*\n?\s*```(?:python|py)?\s*\n(.*?)```",
+    re.IGNORECASE | re.DOTALL,
+)
 
 
 def heuristic_extract(transcript_items: list[tuple[int, str, int, str]]) -> str:
     """Best-effort answer extraction when Synth never said DONE.
 
-    Priority: latest Refined > latest Verified > latest Computed > latest Candidate
-              > last non-empty line.
+    Priority: code-block Refined/Verified/Candidate > inline Refined > inline
+    Verified > Computed > inline Candidate > last non-empty line.
+    Code blocks are returned with the python fences preserved so downstream
+    graders that look for ```python``` (e.g. grade_humaneval) can pick it up.
     """
-    # Reverse-scan for each prefix.
+    code_patterns = [(_REFINED_CODE_RE, "Refined"), (_VERIFIED_CODE_RE, "Verified"),
+                     (_CANDIDATE_CODE_RE, "Candidate")]
+    for re_pat, name in code_patterns:
+        for _slot, _role, _cycle, text in reversed(transcript_items):
+            m = re_pat.search(text)
+            if m:
+                code = m.group(1).rstrip()
+                return f"```python\n{code}\n```"
+    # Fall back to inline single-line markers
     for re_pat in (_REFINED_RE, _VERIFIED_RE, _COMPUTED_RE, _CANDIDATE_RE):
         for _slot, _role, _cycle, text in reversed(transcript_items):
             m = re_pat.search(text)

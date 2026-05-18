@@ -33,12 +33,13 @@ from collections import Counter
 from pathlib import Path
 
 # Approximate prices (USD / 1K tokens) — keep up to date if you change models.
+# DeepSeek V4 pricing (per 1K tokens, cache-miss). Update as pricing changes.
 TOKEN_PRICES = {
-    "deepseek-chat": (0.00027, 0.00110),     # DeepSeek V3 cache miss
-    "deepseek-reasoner": (0.00055, 0.00219), # DeepSeek R1
-    "gpt-4o-mini": (0.00015, 0.0006),
-    "gpt-4o": (0.0025, 0.01),
-    "qwen3-4b": (0.0, 0.0),                   # local
+    "deepseek-v4-pro":   (0.00174, 0.00348),
+    "deepseek-v4-flash": (0.00014, 0.00028),
+    # Legacy aliases (now map to v4-flash server-side)
+    "deepseek-chat":     (0.00014, 0.00028),
+    "deepseek-reasoner": (0.00014, 0.00028),
 }
 
 
@@ -53,25 +54,17 @@ def _build_worker(args):
         return MockWorker(fake_answer=args.mock_answer)
     if args.worker == "openai":
         from arch_policy import OpenAIWorker
+        extra = None
+        if "deepseek" in (args.worker_model or "").lower():
+            extra = {"thinking": {"type": "disabled"}}
         return OpenAIWorker(
             model=args.worker_model,
             api_key=os.environ.get("OPENAI_API_KEY"),
             base_url=os.environ.get("OPENAI_BASE_URL"),
             temperature=args.worker_temperature,
             timeout=args.worker_timeout,
+            extra_body=extra,
         )
-    if args.worker == "hf":
-        from transformers import AutoModelForCausalLM, AutoTokenizer
-        from arch_policy import HFWorker
-        tok = AutoTokenizer.from_pretrained(args.worker_model)
-        if tok.pad_token_id is None:
-            tok.pad_token = tok.eos_token
-        mdl = AutoModelForCausalLM.from_pretrained(
-            args.worker_model,
-            torch_dtype="bfloat16" if args.worker_dtype == "bfloat16" else "auto",
-            device_map="auto",
-        )
-        return HFWorker(model=mdl, tokenizer=tok)
     raise ValueError(f"unknown worker {args.worker}")
 
 
@@ -109,7 +102,7 @@ def main() -> int:
     ap.add_argument("--baseline", default="single",
                     help="baseline name (see arch_policy.baselines.BASELINE_REGISTRY)")
     ap.add_argument("--head_ckpt", default=None, help="path to head checkpoint dir")
-    ap.add_argument("--head_model", default="Qwen/Qwen3.5-9B")
+    ap.add_argument("--head_model", default="Qwen/Qwen3-4B")
     ap.add_argument("--lora_rank", type=int, default=0,
                     help="LoRA rank (must match SFT setting if non-zero).")
     ap.add_argument("--freeze_backbone", action=argparse.BooleanOptionalAction, default=False)
@@ -124,7 +117,7 @@ def main() -> int:
     ap.add_argument("--n", type=int, default=200)
     ap.add_argument("--seed", type=int, default=0)
 
-    ap.add_argument("--worker", choices=["mock", "openai", "hf"], default="openai")
+    ap.add_argument("--worker", choices=["mock", "openai"], default="openai")
     ap.add_argument("--worker_model", default="deepseek-chat")
     ap.add_argument("--worker_dtype", default="bfloat16")
     ap.add_argument("--worker_temperature", type=float, default=0.0)

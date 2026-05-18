@@ -80,7 +80,6 @@ _LAZY_TRAINING = (
     "sft_loss_batch", "sft_loss_single",
     "GRPOBatch", "entropy_typed", "grpo_step", "train_grpo",
 )
-_LAZY_EXECUTOR = ("HFWorker",)
 _LAZY_DATA = (
     "DEFAULT_SFT_MIX",
     "SFTArchDataset", "SFTSample",
@@ -95,9 +94,6 @@ def __getattr__(name: str):
     if name in _LAZY_TRAINING:
         from . import training as _train_mod
         return getattr(_train_mod, name)
-    if name in _LAZY_EXECUTOR:
-        from . import executor as _ex_mod
-        return getattr(_ex_mod, name)
     if name in _LAZY_DATA:
         from . import data as _data_mod
         return getattr(_data_mod, name)
@@ -141,8 +137,6 @@ __all__ = [
     "RewardBreakdown", "compute_reward", "grade_answer",
     # baselines
     "BASELINE_REGISTRY", "get_baseline",
-    # executor extra
-    "HFWorker",
     # utils
     "seed_all",
 ]

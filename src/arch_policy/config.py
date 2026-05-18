@@ -72,13 +72,13 @@ class ModelSpec:
     trainable (full FT or LoRA) — see `ArchitectureHead` for the three modes.
     """
 
-    head_model: str = "Qwen/Qwen3.5-9B"
+    head_model: str = "Qwen/Qwen3-4B"
     head_dtype: str = "bfloat16"
     head_device: str = "cuda:0"
 
-    # Agents and Synth use the SAME worker (DeepSeek API / OpenAI-compatible).
-    # No local agent inference is required.
-    worker_model: str = "deepseek-chat"
+    # Agents and Synth use a remote OpenAI-compatible chat API (DeepSeek V4
+    # by default). The head and worker are completely decoupled.
+    worker_model: str = "deepseek-v4-pro"
     worker_base_url: str = "https://api.deepseek.com/v1"
 
 
