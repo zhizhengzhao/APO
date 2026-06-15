@@ -1,0 +1,37 @@
+# Python 3.10+ recommended (3.11 tested).
+# transformers >=4.51 needed for Qwen3 support.
+
+# --- Core ML ---
+torch>=2.3,<2.7
+transformers>=4.51,<4.55
+accelerate>=0.34
+peft>=0.11                # LoRA fine-tuning of the head backbone
+safetensors>=0.4.5
+huggingface-hub>=0.25
+tokenizers>=0.21
+sentencepiece
+einops
+numpy>=1.26,<2.3
+
+# --- Workers ---
+# Released experiments use the Qwen 3-tier pool (flash/plus/max) via the
+# DashScope OpenAI-compatible endpoint. Optional alternate OpenAI-compatible
+# backends (deepseek/gpugeek) share the same client.
+openai>=1.30              # OpenAI-compatible chat completions client
+httpx>=0.27               # explicit connection-pool tuning
+
+# --- Tools available to agents ---
+# These libraries are loaded INSIDE python_exec subprocesses on demand:
+# agents `import sympy / pint / numpy / scipy` from their generated
+# snippets, so the worker host must have them on PYTHONPATH. Probe
+# any new host with `tools/probe_tool_health.py --free-only` to catch
+# missing deps BEFORE a prod GRPO/eval run.
+sympy>=1.12               # symbolic math (math category)
+pint>=0.23                # physical units
+scipy>=1.11               # numerical methods (special functions, optimize)
+pytest>=7                 # pytest_runner (runtime tool, not just dev)
+
+# --- Data + utils ---
+datasets>=3.0
+pyyaml
+tqdm
