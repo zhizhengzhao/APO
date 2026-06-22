@@ -19,16 +19,16 @@ Values below are means over epoch 18 (steps 425-449). They are on-policy trainin
 | math | 0.724 | 8.39 | 0.712 | 7.59 |
 | reasoning | 0.708 | 6.66 | 0.740 | 4.59 |
 
-Final-30 model share (flash / plus / max):
+Epoch-18 model share (flash / plus / max):
 
 | Run | model share | top architecture family |
 |---|---|---|
-| `code_nobonus` | 0.12 / 0.18 / 0.70 | `Refiner[max] + Solver[max] + Solver[max] + Solver[max]` (edges=10, count=29) |
-| `code_bonus_fixed` | 0.08 / 0.18 / 0.74 | `Solver[max] + Solver[max] + Solver[max]` (edges=4, count=151) |
-| `math_nobonus` | 0.19 / 0.43 / 0.38 | `Solver[max] + Solver[max] + Solver[plus]` (edges=4, count=8) |
-| `math_bonus_fixed` | 0.19 / 0.40 / 0.41 | `Solver[max] + Solver[plus]` (edges=2, count=28) |
-| `reasoning_nobonus` | 0.33 / 0.51 / 0.16 | `Solver[flash] + Solver[plus] + Verifier[plus]` (edges=1, count=17) |
-| `reasoning_bonus_fixed` | 0.16 / 0.72 / 0.12 | `Solver[plus] + Solver[plus]` (edges=1, count=405) |
+| `code_nobonus` | 0.12 / 0.18 / 0.70 | `Refiner[max] + Solver[max] + Solver[max] + Solver[max]` (edges=10, count=22) |
+| `code_bonus_fixed` | 0.08 / 0.18 / 0.74 | `Solver[max] + Solver[max] + Solver[max]` (edges=4, count=128) |
+| `math_nobonus` | 0.18 / 0.44 / 0.38 | `Solver[max] + Solver[max] + Solver[plus]` (edges=4, count=6) |
+| `math_bonus_fixed` | 0.19 / 0.41 / 0.40 | `Solver[max] + Solver[plus]` (edges=2, count=22) |
+| `reasoning_nobonus` | 0.33 / 0.51 / 0.16 | `Solver[flash] + Solver[plus] + Verifier[plus]` (edges=1, count=16) |
+| `reasoning_bonus_fixed` | 0.16 / 0.73 / 0.12 | `Solver[plus] + Solver[plus]` (edges=1, count=338) |
 
 ## Repository layout
 

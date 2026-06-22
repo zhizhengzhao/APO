@@ -257,7 +257,155 @@
       "n_active_epoch18": 4.927250003814697,
       "api_errors_epoch18": 0,
       "eng_invalid_max_epoch18": 0.078125,
-      "run_errors_max_epoch18": 5
+      "run_errors_max_epoch18": 5,
+      "epoch18_architecture": {
+        "step_window": [
+          425,
+          449
+        ],
+        "details_bad_json": 0,
+        "details_lines": 450,
+        "role_share": {
+          "Critic": 0.018692777212614444,
+          "Expert": 0.023016276703967446,
+          "Planner": 0.009537131230925738,
+          "Refiner": 0.2873855544252289,
+          "Researcher": 0.013606307222787386,
+          "Solver": 0.48664801627670395,
+          "Tester": 0.015005086469989827,
+          "Verifier": 0.1461088504577823
+        },
+        "model_share": {
+          "flash": 0.12296541200406917,
+          "max": 0.6953204476093591,
+          "plus": 0.18171414038657172
+        },
+        "n_active_share": {
+          "2": 0.0018796992481203006,
+          "3": 0.06453634085213032,
+          "4": 0.22431077694235588,
+          "5": 0.42293233082706766,
+          "6": 0.28634085213032584
+        },
+        "edge_share": {
+          "10": 0.20802005012531327,
+          "11": 0.003132832080200501,
+          "12": 0.0043859649122807015,
+          "13": 0.0006265664160401002,
+          "16": 0.016290726817042606,
+          "17": 0.3941102756892231,
+          "18": 0.007518796992481203,
+          "2": 0.0018796992481203006,
+          "20": 0.003132832080200501,
+          "25": 0.006892230576441102,
+          "26": 0.27380952380952384,
+          "27": 0.005639097744360902,
+          "4": 0.010651629072681704,
+          "5": 0.04887218045112782,
+          "6": 0.005639097744360902,
+          "9": 0.009398496240601503
+        },
+        "role_model_counts": {
+          "Solver|max": 2843,
+          "Verifier|max": 783,
+          "Refiner|plus": 562,
+          "Refiner|flash": 274,
+          "Refiner|max": 1424,
+          "Tester|flash": 11,
+          "Expert|plus": 33,
+          "Solver|flash": 459,
+          "Solver|plus": 525,
+          "Verifier|flash": 143,
+          "Tester|plus": 25,
+          "Verifier|plus": 223,
+          "Researcher|max": 71,
+          "Expert|max": 107,
+          "Expert|flash": 41,
+          "Critic|max": 101,
+          "Tester|max": 82,
+          "Planner|max": 57,
+          "Critic|flash": 17,
+          "Planner|flash": 10,
+          "Critic|plus": 29,
+          "Researcher|plus": 24,
+          "Researcher|flash": 12,
+          "Planner|plus": 8
+        },
+        "top_arch_families": [
+          {
+            "family": "Refiner[max] + Solver[max] + Solver[max] + Solver[max]",
+            "edges": 10,
+            "n_active": 4,
+            "count": 22
+          },
+          {
+            "family": "Refiner[max] + Refiner[plus] + Solver[max] + Solver[max] + Solver[max]",
+            "edges": 17,
+            "n_active": 5,
+            "count": 21
+          },
+          {
+            "family": "Refiner[max] + Solver[max] + Solver[max] + Solver[max] + Verifier[max]",
+            "edges": 17,
+            "n_active": 5,
+            "count": 16
+          },
+          {
+            "family": "Refiner[max] + Solver[max] + Solver[max] + Verifier[max]",
+            "edges": 10,
+            "n_active": 4,
+            "count": 15
+          },
+          {
+            "family": "Refiner[max] + Refiner[max] + Solver[max] + Solver[max] + Solver[max] + Verifier[max]",
+            "edges": 26,
+            "n_active": 6,
+            "count": 14
+          },
+          {
+            "family": "Refiner[max] + Refiner[max] + Solver[max] + Solver[max] + Solver[max]",
+            "edges": 17,
+            "n_active": 5,
+            "count": 14
+          },
+          {
+            "family": "Refiner[max] + Solver[max] + Solver[max] + Solver[plus]",
+            "edges": 10,
+            "n_active": 4,
+            "count": 12
+          },
+          {
+            "family": "Refiner[max] + Refiner[max] + Solver[flash] + Solver[max]",
+            "edges": 10,
+            "n_active": 4,
+            "count": 11
+          },
+          {
+            "family": "Refiner[flash] + Refiner[max] + Solver[max] + Solver[max] + Verifier[max]",
+            "edges": 17,
+            "n_active": 5,
+            "count": 11
+          },
+          {
+            "family": "Refiner[plus] + Solver[max] + Solver[max] + Solver[max]",
+            "edges": 10,
+            "n_active": 4,
+            "count": 10
+          },
+          {
+            "family": "Refiner[max] + Refiner[max] + Solver[max] + Solver[max] + Verifier[max]",
+            "edges": 17,
+            "n_active": 5,
+            "count": 9
+          },
+          {
+            "family": "Refiner[max] + Refiner[plus] + Solver[max] + Solver[max] + Verifier[max]",
+            "edges": 17,
+            "n_active": 5,
+            "count": 9
+          }
+        ]
+      }
     },
     "code_bonus_fixed": {
       "epochs": [
@@ -514,7 +662,156 @@
       "n_active_epoch18": 3.986041669845581,
       "api_errors_epoch18": 0,
       "eng_invalid_max_epoch18": 0.0625,
-      "run_errors_max_epoch18": 4
+      "run_errors_max_epoch18": 4,
+      "epoch18_architecture": {
+        "step_window": [
+          425,
+          449
+        ],
+        "details_bad_json": 0,
+        "details_lines": 450,
+        "role_share": {
+          "Critic": 0.00392958189248664,
+          "Expert": 0.01776171015403961,
+          "Planner": 0.015403961018547626,
+          "Refiner": 0.17384470292360893,
+          "Researcher": 0.009745363093366866,
+          "Solver": 0.707639107198994,
+          "Tester": 0.009902546369066331,
+          "Verifier": 0.06177302734988997
+        },
+        "model_share": {
+          "flash": 0.07733417164413707,
+          "max": 0.744419993712669,
+          "plus": 0.17824583464319396
+        },
+        "n_active_share": {
+          "1": 0.0006265664160401002,
+          "2": 0.014411027568922305,
+          "3": 0.25125313283208023,
+          "4": 0.4968671679197995,
+          "5": 0.20551378446115287,
+          "6": 0.03132832080200501
+        },
+        "edge_share": {
+          "0": 0.0006265664160401002,
+          "1": 0.012531328320802004,
+          "10": 0.08020050125313283,
+          "11": 0.0006265664160401002,
+          "14": 0.08020050125313283,
+          "15": 0.0018796992481203006,
+          "16": 0.12343358395989974,
+          "2": 0.0018796992481203006,
+          "22": 0.0006265664160401002,
+          "23": 0.03070175438596491,
+          "3": 0.003132832080200501,
+          "4": 0.23934837092731828,
+          "5": 0.007518796992481203,
+          "6": 0.0012531328320802004,
+          "7": 0.0006265664160401002,
+          "8": 0.34774436090225563,
+          "9": 0.06766917293233082
+        },
+        "role_model_counts": {
+          "Solver|max": 3512,
+          "Verifier|max": 284,
+          "Refiner|flash": 118,
+          "Solver|plus": 687,
+          "Refiner|plus": 320,
+          "Planner|max": 74,
+          "Planner|plus": 9,
+          "Expert|max": 90,
+          "Refiner|max": 668,
+          "Researcher|plus": 8,
+          "Tester|max": 50,
+          "Verifier|plus": 81,
+          "Researcher|flash": 11,
+          "Solver|flash": 303,
+          "Verifier|flash": 28,
+          "Expert|flash": 14,
+          "Planner|flash": 15,
+          "Researcher|max": 43,
+          "Critic|max": 15,
+          "Critic|plus": 10,
+          "Expert|plus": 9,
+          "Tester|flash": 3,
+          "Tester|plus": 10
+        },
+        "top_arch_families": [
+          {
+            "family": "Solver[max] + Solver[max] + Solver[max]",
+            "edges": 4,
+            "n_active": 3,
+            "count": 128
+          },
+          {
+            "family": "Solver[max] + Solver[max] + Solver[plus]",
+            "edges": 4,
+            "n_active": 3,
+            "count": 79
+          },
+          {
+            "family": "Refiner[max] + Solver[max] + Solver[max] + Solver[max]",
+            "edges": 8,
+            "n_active": 4,
+            "count": 54
+          },
+          {
+            "family": "Solver[max] + Solver[max] + Solver[max] + Solver[max]",
+            "edges": 8,
+            "n_active": 4,
+            "count": 41
+          },
+          {
+            "family": "Solver[max] + Solver[max] + Solver[max] + Verifier[max]",
+            "edges": 8,
+            "n_active": 4,
+            "count": 37
+          },
+          {
+            "family": "Refiner[max] + Solver[max] + Solver[max] + Solver[plus]",
+            "edges": 8,
+            "n_active": 4,
+            "count": 34
+          },
+          {
+            "family": "Solver[flash] + Solver[max] + Solver[max]",
+            "edges": 4,
+            "n_active": 3,
+            "count": 32
+          },
+          {
+            "family": "Solver[max] + Solver[max] + Solver[max] + Solver[plus]",
+            "edges": 8,
+            "n_active": 4,
+            "count": 28
+          },
+          {
+            "family": "Refiner[max] + Solver[flash] + Solver[max] + Solver[max]",
+            "edges": 8,
+            "n_active": 4,
+            "count": 22
+          },
+          {
+            "family": "Refiner[plus] + Solver[max] + Solver[max] + Solver[max]",
+            "edges": 8,
+            "n_active": 4,
+            "count": 21
+          },
+          {
+            "family": "Solver[max] + Solver[max] + Solver[plus] + Verifier[max]",
+            "edges": 8,
+            "n_active": 4,
+            "count": 21
+          },
+          {
+            "family": "Refiner[plus] + Solver[max] + Solver[max] + Solver[plus]",
+            "edges": 8,
+            "n_active": 4,
+            "count": 18
+          }
+        ]
+      }
     },
     "math_nobonus": {
       "epochs": [
@@ -771,7 +1068,165 @@
       "n_active_epoch18": 4.073509616851807,
       "api_errors_epoch18": 0,
       "eng_invalid_max_epoch18": 0.078125,
-      "run_errors_max_epoch18": 12
+      "run_errors_max_epoch18": 12,
+      "epoch18_architecture": {
+        "step_window": [
+          425,
+          449
+        ],
+        "details_bad_json": 0,
+        "details_lines": 450,
+        "role_share": {
+          "Critic": 0.0479282622139765,
+          "Expert": 0.03447742733457019,
+          "Planner": 0.035559678416821276,
+          "Refiner": 0.14038342609771182,
+          "Researcher": 0.03525046382189239,
+          "Solver": 0.44712430426716143,
+          "Tester": 0.07343846629560916,
+          "Verifier": 0.18583797155225726
+        },
+        "model_share": {
+          "flash": 0.18429189857761286,
+          "max": 0.37755102040816324,
+          "plus": 0.43815708101422385
+        },
+        "n_active_share": {
+          "1": 0.0025188916876574307,
+          "2": 0.04408060453400504,
+          "3": 0.2040302267002519,
+          "4": 0.41309823677581864,
+          "5": 0.29974811083123426,
+          "6": 0.036523929471032744
+        },
+        "edge_share": {
+          "0": 0.0025188916876574307,
+          "1": 0.02392947103274559,
+          "10": 0.01322418136020151,
+          "11": 0.017632241813602016,
+          "12": 0.005667506297229219,
+          "13": 0.018261964735516372,
+          "14": 0.08816120906801007,
+          "15": 0.16498740554156172,
+          "16": 0.01700251889168766,
+          "17": 0.0012594458438287153,
+          "18": 0.005037783375314861,
+          "19": 0.0006297229219143577,
+          "2": 0.020151133501259445,
+          "20": 0.0006297229219143577,
+          "21": 0.003778337531486146,
+          "22": 0.014483627204030227,
+          "23": 0.015743073047858942,
+          "24": 0.001889168765743073,
+          "3": 0.04093198992443325,
+          "4": 0.1297229219143577,
+          "5": 0.018891687657430732,
+          "6": 0.0163727959697733,
+          "7": 0.061712846347607056,
+          "8": 0.1857682619647355,
+          "9": 0.13161209068010077
+        },
+        "role_model_counts": {
+          "Solver|plus": 1258,
+          "Tester|plus": 216,
+          "Researcher|max": 86,
+          "Solver|flash": 542,
+          "Critic|flash": 58,
+          "Verifier|plus": 522,
+          "Solver|max": 1092,
+          "Refiner|max": 346,
+          "Verifier|max": 451,
+          "Planner|max": 87,
+          "Critic|max": 125,
+          "Verifier|flash": 229,
+          "Critic|plus": 127,
+          "Planner|flash": 33,
+          "Planner|plus": 110,
+          "Researcher|plus": 99,
+          "Expert|max": 91,
+          "Tester|flash": 95,
+          "Refiner|plus": 404,
+          "Researcher|flash": 43,
+          "Refiner|flash": 158,
+          "Expert|flash": 34,
+          "Tester|max": 164,
+          "Expert|plus": 98
+        },
+        "top_arch_families": [
+          {
+            "family": "Solver[max] + Solver[max] + Solver[plus]",
+            "edges": 4,
+            "n_active": 3,
+            "count": 6
+          },
+          {
+            "family": "Solver[max] + Solver[plus] + Solver[plus]",
+            "edges": 4,
+            "n_active": 3,
+            "count": 6
+          },
+          {
+            "family": "Solver[max] + Solver[plus] + Verifier[max]",
+            "edges": 4,
+            "n_active": 3,
+            "count": 4
+          },
+          {
+            "family": "Solver[max] + Solver[plus] + Verifier[plus]",
+            "edges": 4,
+            "n_active": 3,
+            "count": 4
+          },
+          {
+            "family": "Solver[plus] + Tester[plus]",
+            "edges": 1,
+            "n_active": 2,
+            "count": 4
+          },
+          {
+            "family": "Solver[flash] + Solver[max] + Solver[plus] + Verifier[plus]",
+            "edges": 8,
+            "n_active": 4,
+            "count": 4
+          },
+          {
+            "family": "Solver[max] + Solver[max] + Solver[plus] + Verifier[plus]",
+            "edges": 9,
+            "n_active": 4,
+            "count": 4
+          },
+          {
+            "family": "Solver[max] + Solver[max] + Solver[plus] + Solver[plus]",
+            "edges": 8,
+            "n_active": 4,
+            "count": 4
+          },
+          {
+            "family": "Solver[max] + Solver[max] + Solver[plus] + Verifier[flash]",
+            "edges": 8,
+            "n_active": 4,
+            "count": 4
+          },
+          {
+            "family": "Solver[flash] + Solver[max] + Solver[plus]",
+            "edges": 4,
+            "n_active": 3,
+            "count": 4
+          },
+          {
+            "family": "Solver[flash] + Solver[plus] + Verifier[plus]",
+            "edges": 4,
+            "n_active": 3,
+            "count": 4
+          },
+          {
+            "family": "Solver[max] + Solver[max] + Solver[plus] + Verifier[max]",
+            "edges": 8,
+            "n_active": 4,
+            "count": 4
+          }
+        ]
+      }
     },
     "math_bonus_fixed": {
       "epochs": [
@@ -1028,7 +1483,164 @@
       "n_active_epoch18": 3.5600480747222902,
       "api_errors_epoch18": 0,
       "eng_invalid_max_epoch18": 0.0625,
-      "run_errors_max_epoch18": 11
+      "run_errors_max_epoch18": 11,
+      "epoch18_architecture": {
+        "step_window": [
+          425,
+          449
+        ],
+        "details_bad_json": 0,
+        "details_lines": 450,
+        "role_share": {
+          "Critic": 0.04883227176220807,
+          "Expert": 0.03680113234253362,
+          "Planner": 0.01875442321302194,
+          "Refiner": 0.17144373673036092,
+          "Researcher": 0.027423920736022647,
+          "Solver": 0.47859164897381457,
+          "Tester": 0.060155697098372256,
+          "Verifier": 0.15799716914366596
+        },
+        "model_share": {
+          "flash": 0.18913658881811748,
+          "max": 0.4046355272469922,
+          "plus": 0.4062278839348903
+        },
+        "n_active_share": {
+          "1": 0.011964735516372796,
+          "2": 0.11083123425692695,
+          "3": 0.3513853904282116,
+          "4": 0.3690176322418136,
+          "5": 0.14546599496221663,
+          "6": 0.011335012594458438
+        },
+        "edge_share": {
+          "0": 0.020151133501259445,
+          "1": 0.018261964735516372,
+          "10": 0.030856423173803528,
+          "11": 0.010075566750629723,
+          "12": 0.02707808564231738,
+          "13": 0.04093198992443325,
+          "14": 0.042821158690176324,
+          "15": 0.0163727959697733,
+          "16": 0.004408060453400504,
+          "17": 0.001889168765743073,
+          "18": 0.001889168765743073,
+          "19": 0.001889168765743073,
+          "2": 0.09571788413098237,
+          "20": 0.001889168765743073,
+          "21": 0.0012594458438287153,
+          "22": 0.0012594458438287153,
+          "23": 0.0006297229219143577,
+          "3": 0.044710327455919394,
+          "4": 0.1801007556675063,
+          "5": 0.11775818639798488,
+          "6": 0.044710327455919394,
+          "7": 0.08249370277078086,
+          "8": 0.10894206549118388,
+          "9": 0.10390428211586902
+        },
+        "role_model_counts": {
+          "Solver|plus": 1146,
+          "Verifier|flash": 183,
+          "Refiner|plus": 343,
+          "Refiner|max": 378,
+          "Solver|max": 1120,
+          "Planner|max": 42,
+          "Solver|flash": 439,
+          "Verifier|max": 369,
+          "Expert|plus": 97,
+          "Planner|plus": 46,
+          "Refiner|flash": 248,
+          "Critic|plus": 112,
+          "Verifier|plus": 341,
+          "Tester|max": 145,
+          "Tester|plus": 140,
+          "Planner|flash": 18,
+          "Critic|max": 100,
+          "Critic|flash": 64,
+          "Researcher|max": 52,
+          "Tester|flash": 55,
+          "Expert|flash": 30,
+          "Researcher|flash": 32,
+          "Expert|max": 81,
+          "Researcher|plus": 71
+        },
+        "top_arch_families": [
+          {
+            "family": "Solver[max] + Solver[plus]",
+            "edges": 2,
+            "n_active": 2,
+            "count": 22
+          },
+          {
+            "family": "Solver[max] + Solver[max]",
+            "edges": 2,
+            "n_active": 2,
+            "count": 12
+          },
+          {
+            "family": "Refiner[max] + Solver[max] + Solver[plus]",
+            "edges": 4,
+            "n_active": 3,
+            "count": 10
+          },
+          {
+            "family": "Solver[plus] + Solver[plus]",
+            "edges": 2,
+            "n_active": 2,
+            "count": 10
+          },
+          {
+            "family": "Solver[max] + Solver[max] + Solver[plus]",
+            "edges": 4,
+            "n_active": 3,
+            "count": 8
+          },
+          {
+            "family": "Refiner[max] + Solver[max] + Solver[plus]",
+            "edges": 5,
+            "n_active": 3,
+            "count": 8
+          },
+          {
+            "family": "Solver[flash] + Solver[plus]",
+            "edges": 2,
+            "n_active": 2,
+            "count": 7
+          },
+          {
+            "family": "Solver[plus]",
+            "edges": 0,
+            "n_active": 1,
+            "count": 7
+          },
+          {
+            "family": "Refiner[plus] + Solver[max] + Solver[plus]",
+            "edges": 5,
+            "n_active": 3,
+            "count": 7
+          },
+          {
+            "family": "Solver[max] + Solver[plus] + Verifier[plus]",
+            "edges": 5,
+            "n_active": 3,
+            "count": 7
+          },
+          {
+            "family": "Solver[max] + Solver[plus] + Verifier[max]",
+            "edges": 4,
+            "n_active": 3,
+            "count": 6
+          },
+          {
+            "family": "Expert[plus] + Solver[max]",
+            "edges": 2,
+            "n_active": 2,
+            "count": 6
+          }
+        ]
+      }
     },
     "reasoning_nobonus": {
       "epochs": [
@@ -1285,7 +1897,163 @@
       "n_active_epoch18": 3.973125,
       "api_errors_epoch18": 0,
       "eng_invalid_max_epoch18": 0.015625,
-      "run_errors_max_epoch18": 5
+      "run_errors_max_epoch18": 5,
+      "epoch18_architecture": {
+        "step_window": [
+          425,
+          449
+        ],
+        "details_bad_json": 0,
+        "details_lines": 450,
+        "role_share": {
+          "Critic": 0.05454545454545454,
+          "Expert": 0.08648221343873518,
+          "Planner": 0.02450592885375494,
+          "Refiner": 0.15114624505928853,
+          "Researcher": 0.033359683794466403,
+          "Solver": 0.39857707509881424,
+          "Tester": 0.06339920948616601,
+          "Verifier": 0.18798418972332015
+        },
+        "model_share": {
+          "flash": 0.3269565217391304,
+          "max": 0.16142292490118576,
+          "plus": 0.5116205533596838
+        },
+        "n_active_share": {
+          "1": 0.0043969849246231155,
+          "2": 0.05087939698492462,
+          "3": 0.2518844221105528,
+          "4": 0.4007537688442211,
+          "5": 0.2443467336683417,
+          "6": 0.04773869346733668
+        },
+        "edge_share": {
+          "0": 0.04522613065326633,
+          "1": 0.17964824120603015,
+          "10": 0.0678391959798995,
+          "11": 0.04334170854271357,
+          "12": 0.04271356783919598,
+          "13": 0.024497487437185928,
+          "14": 0.001256281407035176,
+          "15": 0.001256281407035176,
+          "16": 0.0018844221105527637,
+          "17": 0.0043969849246231155,
+          "18": 0.010678391959798994,
+          "19": 0.020100502512562814,
+          "2": 0.04271356783919598,
+          "20": 0.010050251256281407,
+          "21": 0.001256281407035176,
+          "22": 0.000628140703517588,
+          "3": 0.02512562814070352,
+          "4": 0.23366834170854273,
+          "5": 0.0986180904522613,
+          "6": 0.022613065326633167,
+          "7": 0.04271356783919598,
+          "8": 0.02135678391959799,
+          "9": 0.05841708542713568
+        },
+        "role_model_counts": {
+          "Solver|plus": 1362,
+          "Critic|plus": 156,
+          "Verifier|flash": 321,
+          "Solver|flash": 897,
+          "Solver|max": 262,
+          "Verifier|max": 254,
+          "Refiner|flash": 256,
+          "Refiner|plus": 456,
+          "Refiner|max": 244,
+          "Verifier|plus": 614,
+          "Tester|flash": 132,
+          "Expert|plus": 278,
+          "Researcher|plus": 106,
+          "Planner|plus": 74,
+          "Expert|flash": 212,
+          "Critic|flash": 126,
+          "Researcher|max": 32,
+          "Tester|plus": 190,
+          "Tester|max": 79,
+          "Researcher|flash": 73,
+          "Critic|max": 63,
+          "Expert|max": 57,
+          "Planner|flash": 51,
+          "Planner|max": 30
+        },
+        "top_arch_families": [
+          {
+            "family": "Solver[flash] + Solver[plus] + Verifier[plus]",
+            "edges": 1,
+            "n_active": 3,
+            "count": 16
+          },
+          {
+            "family": "Solver[flash] + Solver[plus] + Solver[plus]",
+            "edges": 1,
+            "n_active": 3,
+            "count": 9
+          },
+          {
+            "family": "Solver[flash] + Solver[max] + Solver[plus]",
+            "edges": 1,
+            "n_active": 3,
+            "count": 8
+          },
+          {
+            "family": "Solver[plus] + Solver[plus]",
+            "edges": 0,
+            "n_active": 2,
+            "count": 7
+          },
+          {
+            "family": "Solver[flash] + Solver[flash]",
+            "edges": 0,
+            "n_active": 2,
+            "count": 6
+          },
+          {
+            "family": "Solver[flash] + Solver[plus]",
+            "edges": 0,
+            "n_active": 2,
+            "count": 6
+          },
+          {
+            "family": "Solver[flash] + Solver[flash] + Solver[plus]",
+            "edges": 1,
+            "n_active": 3,
+            "count": 5
+          },
+          {
+            "family": "Refiner[max] + Solver[flash] + Solver[plus] + Solver[plus]",
+            "edges": 4,
+            "n_active": 4,
+            "count": 5
+          },
+          {
+            "family": "Refiner[flash] + Solver[flash] + Solver[plus]",
+            "edges": 1,
+            "n_active": 3,
+            "count": 5
+          },
+          {
+            "family": "Solver[flash] + Solver[plus] + Verifier[flash] + Verifier[plus]",
+            "edges": 4,
+            "n_active": 4,
+            "count": 5
+          },
+          {
+            "family": "Refiner[plus] + Solver[flash] + Solver[plus]",
+            "edges": 1,
+            "n_active": 3,
+            "count": 4
+          },
+          {
+            "family": "Solver[flash] + Solver[plus] + Verifier[flash]",
+            "edges": 1,
+            "n_active": 3,
+            "count": 4
+          }
+        ]
+      }
     },
     "reasoning_bonus_fixed": {
       "epochs": [
@@ -1542,7 +2310,156 @@
       "n_active_epoch18": 2.9109821414947508,
       "api_errors_epoch18": 0,
       "eng_invalid_max_epoch18": 0.015625,
-      "run_errors_max_epoch18": 3
+      "run_errors_max_epoch18": 3,
+      "epoch18_architecture": {
+        "step_window": [
+          425,
+          449
+        ],
+        "details_bad_json": 0,
+        "details_lines": 458,
+        "role_share": {
+          "Critic": 0.017040552200172563,
+          "Expert": 0.007981018119068163,
+          "Planner": 0.0021570319240724763,
+          "Refiner": 0.1540120793787748,
+          "Researcher": 0.005392579810181191,
+          "Solver": 0.6835634167385677,
+          "Tester": 0.013373597929249352,
+          "Verifier": 0.11647972389991372
+        },
+        "model_share": {
+          "flash": 0.15595340811044003,
+          "max": 0.11798964624676445,
+          "plus": 0.7260569456427955
+        },
+        "n_active_share": {
+          "1": 0.01256281407035176,
+          "2": 0.3128140703517588,
+          "3": 0.44974874371859297,
+          "4": 0.20037688442211055,
+          "5": 0.02386934673366834,
+          "6": 0.000628140703517588
+        },
+        "edge_share": {
+          "0": 0.01256281407035176,
+          "1": 0.3015075376884422,
+          "10": 0.08542713567839195,
+          "11": 0.03077889447236181,
+          "16": 0.000628140703517588,
+          "17": 0.02135678391959799,
+          "18": 0.001256281407035176,
+          "19": 0.000628140703517588,
+          "2": 0.011306532663316583,
+          "27": 0.000628140703517588,
+          "3": 0.001256281407035176,
+          "4": 0.2770100502512563,
+          "5": 0.16645728643216082,
+          "6": 0.005025125628140704,
+          "8": 0.001256281407035176,
+          "9": 0.0829145728643216
+        },
+        "role_model_counts": {
+          "Solver|plus": 2770,
+          "Refiner|max": 197,
+          "Solver|flash": 235,
+          "Verifier|max": 140,
+          "Refiner|plus": 244,
+          "Researcher|max": 5,
+          "Refiner|flash": 273,
+          "Solver|max": 164,
+          "Verifier|flash": 171,
+          "Tester|max": 15,
+          "Critic|max": 19,
+          "Verifier|plus": 229,
+          "Tester|plus": 35,
+          "Researcher|plus": 16,
+          "Expert|plus": 26,
+          "Critic|plus": 42,
+          "Critic|flash": 18,
+          "Planner|flash": 2,
+          "Tester|flash": 12,
+          "Researcher|flash": 4,
+          "Planner|max": 4,
+          "Expert|flash": 8,
+          "Planner|plus": 4,
+          "Expert|max": 3
+        },
+        "top_arch_families": [
+          {
+            "family": "Solver[plus] + Solver[plus]",
+            "edges": 1,
+            "n_active": 2,
+            "count": 338
+          },
+          {
+            "family": "Solver[flash] + Solver[plus]",
+            "edges": 1,
+            "n_active": 2,
+            "count": 48
+          },
+          {
+            "family": "Solver[plus] + Solver[plus] + Verifier[plus]",
+            "edges": 4,
+            "n_active": 3,
+            "count": 48
+          },
+          {
+            "family": "Refiner[max] + Solver[plus] + Solver[plus]",
+            "edges": 4,
+            "n_active": 3,
+            "count": 45
+          },
+          {
+            "family": "Solver[plus] + Solver[plus] + Verifier[flash]",
+            "edges": 4,
+            "n_active": 3,
+            "count": 45
+          },
+          {
+            "family": "Refiner[flash] + Solver[plus] + Solver[plus]",
+            "edges": 4,
+            "n_active": 3,
+            "count": 43
+          },
+          {
+            "family": "Refiner[plus] + Solver[plus] + Solver[plus]",
+            "edges": 4,
+            "n_active": 3,
+            "count": 41
+          },
+          {
+            "family": "Solver[max] + Solver[plus]",
+            "edges": 1,
+            "n_active": 2,
+            "count": 40
+          },
+          {
+            "family": "Refiner[plus] + Solver[plus] + Solver[plus]",
+            "edges": 5,
+            "n_active": 3,
+            "count": 39
+          },
+          {
+            "family": "Solver[plus] + Solver[plus] + Verifier[max]",
+            "edges": 4,
+            "n_active": 3,
+            "count": 39
+          },
+          {
+            "family": "Refiner[flash] + Solver[plus] + Solver[plus]",
+            "edges": 5,
+            "n_active": 3,
+            "count": 34
+          },
+          {
+            "family": "Refiner[max] + Solver[plus] + Solver[plus]",
+            "edges": 5,
+            "n_active": 3,
+            "count": 30
+          }
+        ]
+      }
     }
   }
 }
