@@ -32,13 +32,13 @@
 
 ## 3. Epoch 级训练曲线
 
-![Epoch curves](results/figures/fig4_six_epoch_curves.png)
+![Epoch curves](../results/figures/fig4_six_epoch_curves.png)
 
 图中每个点为一个 epoch 内 25 个 step 的均值。
 
 ## 4. 第 18 epoch：正确率与调用数
 
-![Epoch 18 correct](results/figures/fig5_epoch18_correct.png)
+![Epoch 18 correct](../results/figures/fig5_epoch18_correct.png)
 
 | 类别 | no-bonus correct | bonus-fixed correct | Δ correct | no-bonus calls | bonus-fixed calls | Δ calls |
 |---|---:|---:|---:|---:|---:|---:|
@@ -54,7 +54,7 @@
 
 ### 5.1 模型选择
 
-![Epoch 18 model share](results/figures/fig2_epoch18_model_share.png)
+![Epoch 18 model share](../results/figures/fig2_epoch18_model_share.png)
 
 | Run | epoch18 model share (flash / plus / max) |
 |---|---|
@@ -67,7 +67,7 @@
 
 ### 5.2 Active agent 与通信边
 
-![Epoch 18 active agents and edge counts](results/figures/fig3_epoch18_active_edges.png)
+![Epoch 18 active agents and edge counts](../results/figures/fig3_epoch18_active_edges.png)
 
 | Run | n_active 主分布 | edges_count 主分布 |
 |---|---|---|
