@@ -1,0 +1,976 @@
+{
+  "experiments": {
+    "code_nobonus": {
+      "steps": 450,
+      "last_step": 449,
+      "correct_rate_last20": 0.820885419845581,
+      "correct_rate_last5": 0.8804166793823243,
+      "n_calls_last20": 9.020364618301391,
+      "n_calls_last5": 9.150208473205566,
+      "n_active_last20": 4.928593754768372,
+      "api_total": 5,
+      "api_last20": 0,
+      "eng_invalid_max_last20": 0.078125,
+      "runerr_max_last20": 5,
+      "toolerr_total": 13,
+      "tooltrunc_total": 3,
+      "details_bad_json": 0,
+      "details_lines": 450,
+      "role_share_final30": {
+        "Critic": 0.01804479354633266,
+        "Expert": 0.02303364823267169,
+        "Planner": 0.008703959239995755,
+        "Refiner": 0.2864876340091285,
+        "Researcher": 0.0134805222375544,
+        "Solver": 0.49018150939390726,
+        "Tester": 0.015391147436577858,
+        "Verifier": 0.14467678590383187
+      },
+      "model_share_final30": {
+        "flash": 0.1213247001379896,
+        "max": 0.6992888228425858,
+        "plus": 0.1793864770194247
+      },
+      "n_active_share_final30": {
+        "2": 0.002615062761506276,
+        "3": 0.0596234309623431,
+        "4": 0.22698744769874477,
+        "5": 0.4293933054393305,
+        "6": 0.2813807531380753
+      },
+      "edge_share_final30": {
+        "10": 0.21286610878661089,
+        "11": 0.0031380753138075313,
+        "12": 0.0036610878661087866,
+        "13": 0.0005230125523012552,
+        "16": 0.014644351464435146,
+        "17": 0.40219665271966526,
+        "18": 0.008368200836820083,
+        "2": 0.002615062761506276,
+        "20": 0.002615062761506276,
+        "25": 0.006799163179916318,
+        "26": 0.26778242677824265,
+        "27": 0.006799163179916318,
+        "4": 0.00889121338912134,
+        "5": 0.04654811715481171,
+        "6": 0.004707112970711297,
+        "9": 0.007845188284518828
+      },
+      "role_model_counts_final30": {
+        "Solver|plus": 607,
+        "Solver|flash": 539,
+        "Solver|max": 3472,
+        "Refiner|max": 1711,
+        "Verifier|plus": 266,
+        "Refiner|plus": 670,
+        "Verifier|max": 924,
+        "Expert|plus": 38,
+        "Verifier|flash": 173,
+        "Critic|max": 110,
+        "Planner|plus": 9,
+        "Expert|max": 130,
+        "Tester|flash": 13,
+        "Expert|flash": 49,
+        "Refiner|flash": 318,
+        "Critic|flash": 23,
+        "Researcher|max": 84,
+        "Tester|plus": 36,
+        "Planner|flash": 12,
+        "Critic|plus": 37,
+        "Tester|max": 96,
+        "Planner|max": 61,
+        "Researcher|plus": 27,
+        "Researcher|flash": 16
+      },
+      "top_arch_families_final30": [
+        {
+          "family": "Refiner[max] + Solver[max] + Solver[max] + Solver[max]",
+          "edges": 10,
+          "n_active": 4,
+          "count": 29
+        },
+        {
+          "family": "Refiner[max] + Solver[max] + Solver[max] + Solver[max] + Verifier[max]",
+          "edges": 17,
+          "n_active": 5,
+          "count": 23
+        },
+        {
+          "family": "Refiner[max] + Refiner[plus] + Solver[max] + Solver[max] + Solver[max]",
+          "edges": 17,
+          "n_active": 5,
+          "count": 22
+        },
+        {
+          "family": "Refiner[max] + Refiner[max] + Solver[max] + Solver[max] + Solver[max]",
+          "edges": 17,
+          "n_active": 5,
+          "count": 20
+        },
+        {
+          "family": "Refiner[max] + Solver[max] + Solver[max] + Verifier[max]",
+          "edges": 10,
+          "n_active": 4,
+          "count": 19
+        },
+        {
+          "family": "Refiner[max] + Refiner[max] + Solver[max] + Solver[max] + Solver[max] + Verifier[max]",
+          "edges": 26,
+          "n_active": 6,
+          "count": 16
+        },
+        {
+          "family": "Refiner[max] + Refiner[max] + Solver[max] + Solver[max] + Verifier[max]",
+          "edges": 17,
+          "n_active": 5,
+          "count": 14
+        },
+        {
+          "family": "Refiner[max] + Solver[max] + Solver[max] + Solver[plus]",
+          "edges": 10,
+          "n_active": 4,
+          "count": 14
+        },
+        {
+          "family": "Refiner[plus] + Solver[max] + Solver[max] + Solver[max]",
+          "edges": 10,
+          "n_active": 4,
+          "count": 13
+        },
+        {
+          "family": "Refiner[flash] + Refiner[max] + Solver[max] + Solver[max] + Verifier[max]",
+          "edges": 17,
+          "n_active": 5,
+          "count": 12
+        },
+        {
+          "family": "Refiner[max] + Refiner[max] + Solver[flash] + Solver[max]",
+          "edges": 10,
+          "n_active": 4,
+          "count": 12
+        },
+        {
+          "family": "Refiner[max] + Refiner[plus] + Solver[max] + Solver[max] + Verifier[max]",
+          "edges": 17,
+          "n_active": 5,
+          "count": 11
+        }
+      ]
+    },
+    "code_bonus_fixed": {
+      "steps": 450,
+      "last_step": 449,
+      "correct_rate_last20": 0.8223958343267441,
+      "correct_rate_last5": 0.8739583373069764,
+      "n_calls_last20": 7.514635443687439,
+      "n_calls_last5": 7.6585417747497555,
+      "n_active_last20": 3.9770833373069765,
+      "api_total": 0,
+      "api_last20": 0,
+      "eng_invalid_max_last20": 0.0625,
+      "runerr_max_last20": 4,
+      "toolerr_total": 4,
+      "tooltrunc_total": 7,
+      "details_bad_json": 0,
+      "details_lines": 450,
+      "role_share_final30": {
+        "Critic": 0.004459016393442623,
+        "Expert": 0.018885245901639345,
+        "Planner": 0.016262295081967214,
+        "Refiner": 0.17481967213114755,
+        "Researcher": 0.009704918032786886,
+        "Solver": 0.7036065573770491,
+        "Tester": 0.009311475409836066,
+        "Verifier": 0.06295081967213115
+      },
+      "model_share_final30": {
+        "flash": 0.08078688524590164,
+        "max": 0.7422950819672132,
+        "plus": 0.17691803278688525
+      },
+      "n_active_share_final30": {
+        "1": 0.0005230125523012552,
+        "2": 0.014121338912133892,
+        "3": 0.25523012552301255,
+        "4": 0.4895397489539749,
+        "5": 0.20815899581589958,
+        "6": 0.032426778242677826
+      },
+      "edge_share_final30": {
+        "0": 0.0005230125523012552,
+        "1": 0.011506276150627616,
+        "10": 0.07897489539748954,
+        "11": 0.0005230125523012552,
+        "14": 0.08263598326359832,
+        "15": 0.0020920502092050207,
+        "16": 0.12343096234309624,
+        "2": 0.002615062761506276,
+        "22": 0.0005230125523012552,
+        "23": 0.03190376569037657,
+        "3": 0.0036610878661087866,
+        "4": 0.24163179916317992,
+        "5": 0.00889121338912134,
+        "6": 0.0010460251046025104,
+        "7": 0.0005230125523012552,
+        "8": 0.3446652719665272,
+        "9": 0.06485355648535565
+      },
+      "role_model_counts_final30": {
+        "Solver|plus": 814,
+        "Solver|max": 4179,
+        "Refiner|max": 805,
+        "Verifier|plus": 96,
+        "Refiner|plus": 380,
+        "Verifier|max": 345,
+        "Expert|max": 112,
+        "Solver|flash": 372,
+        "Verifier|flash": 39,
+        "Researcher|max": 51,
+        "Refiner|flash": 148,
+        "Planner|max": 94,
+        "Expert|flash": 21,
+        "Researcher|flash": 14,
+        "Expert|plus": 11,
+        "Planner|plus": 12,
+        "Researcher|plus": 9,
+        "Critic|plus": 14,
+        "Tester|max": 55,
+        "Tester|plus": 13,
+        "Planner|flash": 18,
+        "Critic|max": 19,
+        "Critic|flash": 1,
+        "Tester|flash": 3
+      },
+      "top_arch_families_final30": [
+        {
+          "family": "Solver[max] + Solver[max] + Solver[max]",
+          "edges": 4,
+          "n_active": 3,
+          "count": 151
+        },
+        {
+          "family": "Solver[max] + Solver[max] + Solver[plus]",
+          "edges": 4,
+          "n_active": 3,
+          "count": 94
+        },
+        {
+          "family": "Refiner[max] + Solver[max] + Solver[max] + Solver[max]",
+          "edges": 8,
+          "n_active": 4,
+          "count": 61
+        },
+        {
+          "family": "Solver[max] + Solver[max] + Solver[max] + Solver[max]",
+          "edges": 8,
+          "n_active": 4,
+          "count": 45
+        },
+        {
+          "family": "Solver[flash] + Solver[max] + Solver[max]",
+          "edges": 4,
+          "n_active": 3,
+          "count": 43
+        },
+        {
+          "family": "Refiner[max] + Solver[max] + Solver[max] + Solver[plus]",
+          "edges": 8,
+          "n_active": 4,
+          "count": 42
+        },
+        {
+          "family": "Solver[max] + Solver[max] + Solver[max] + Verifier[max]",
+          "edges": 8,
+          "n_active": 4,
+          "count": 41
+        },
+        {
+          "family": "Solver[max] + Solver[max] + Solver[max] + Solver[plus]",
+          "edges": 8,
+          "n_active": 4,
+          "count": 34
+        },
+        {
+          "family": "Refiner[max] + Solver[flash] + Solver[max] + Solver[max]",
+          "edges": 8,
+          "n_active": 4,
+          "count": 30
+        },
+        {
+          "family": "Solver[max] + Solver[max] + Solver[plus] + Verifier[max]",
+          "edges": 8,
+          "n_active": 4,
+          "count": 25
+        },
+        {
+          "family": "Refiner[plus] + Solver[max] + Solver[max] + Solver[max]",
+          "edges": 8,
+          "n_active": 4,
+          "count": 25
+        },
+        {
+          "family": "Refiner[plus] + Solver[max] + Solver[max] + Solver[plus]",
+          "edges": 8,
+          "n_active": 4,
+          "count": 21
+        }
+      ]
+    },
+    "math_nobonus": {
+      "steps": 450,
+      "last_step": 449,
+      "correct_rate_last20": 0.7250600963830948,
+      "correct_rate_last5": 0.7596153855323792,
+      "n_calls_last20": 8.300240421295166,
+      "n_calls_last5": 8.419711685180664,
+      "n_active_last20": 4.084855771064758,
+      "api_total": 0,
+      "api_last20": 0,
+      "eng_invalid_max_last20": 0.078125,
+      "runerr_max_last20": 8,
+      "toolerr_total": 85,
+      "tooltrunc_total": 12,
+      "details_bad_json": 0,
+      "details_lines": 450,
+      "role_share_final30": {
+        "Critic": 0.04963617463617464,
+        "Expert": 0.036122661122661125,
+        "Planner": 0.03703222453222453,
+        "Refiner": 0.13877338877338877,
+        "Researcher": 0.035343035343035345,
+        "Solver": 0.44321725571725573,
+        "Tester": 0.07081600831600832,
+        "Verifier": 0.18905925155925155
+      },
+      "model_share_final30": {
+        "flash": 0.18607068607068608,
+        "max": 0.37902806652806653,
+        "plus": 0.4349012474012474
+      },
+      "n_active_share_final30": {
+        "1": 0.002109704641350211,
+        "2": 0.04430379746835443,
+        "3": 0.2109704641350211,
+        "4": 0.41455696202531644,
+        "5": 0.2911392405063291,
+        "6": 0.03691983122362869
+      },
+      "edge_share_final30": {
+        "0": 0.002109704641350211,
+        "1": 0.023206751054852322,
+        "10": 0.014240506329113924,
+        "11": 0.018459915611814346,
+        "12": 0.005274261603375527,
+        "13": 0.015822784810126583,
+        "14": 0.08649789029535865,
+        "15": 0.16191983122362869,
+        "16": 0.016350210970464137,
+        "17": 0.0015822784810126582,
+        "18": 0.004219409282700422,
+        "19": 0.0005274261603375527,
+        "2": 0.02109704641350211,
+        "20": 0.0005274261603375527,
+        "21": 0.004219409282700422,
+        "22": 0.016350210970464137,
+        "23": 0.014240506329113924,
+        "24": 0.0015822784810126582,
+        "3": 0.044831223628691984,
+        "4": 0.13291139240506328,
+        "5": 0.019514767932489453,
+        "6": 0.01529535864978903,
+        "7": 0.061708860759493674,
+        "8": 0.1877637130801688,
+        "9": 0.12974683544303797
+      },
+      "role_model_counts_final30": {
+        "Solver|flash": 643,
+        "Solver|max": 1292,
+        "Verifier|max": 546,
+        "Refiner|plus": 467,
+        "Researcher|max": 104,
+        "Verifier|flash": 275,
+        "Solver|plus": 1476,
+        "Refiner|max": 413,
+        "Verifier|plus": 634,
+        "Expert|flash": 44,
+        "Planner|plus": 136,
+        "Refiner|flash": 188,
+        "Tester|flash": 107,
+        "Tester|max": 189,
+        "Expert|plus": 119,
+        "Planner|max": 103,
+        "Critic|max": 155,
+        "Researcher|flash": 56,
+        "Critic|plus": 154,
+        "Tester|plus": 249,
+        "Expert|max": 115,
+        "Planner|flash": 46,
+        "Critic|flash": 73,
+        "Researcher|plus": 112
+      },
+      "top_arch_families_final30": [
+        {
+          "family": "Solver[max] + Solver[max] + Solver[plus]",
+          "edges": 4,
+          "n_active": 3,
+          "count": 8
+        },
+        {
+          "family": "Solver[flash] + Solver[max] + Solver[plus]",
+          "edges": 4,
+          "n_active": 3,
+          "count": 7
+        },
+        {
+          "family": "Solver[max] + Solver[plus] + Verifier[plus]",
+          "edges": 4,
+          "n_active": 3,
+          "count": 6
+        },
+        {
+          "family": "Solver[flash] + Solver[plus] + Verifier[plus]",
+          "edges": 4,
+          "n_active": 3,
+          "count": 6
+        },
+        {
+          "family": "Solver[max] + Solver[plus] + Solver[plus]",
+          "edges": 4,
+          "n_active": 3,
+          "count": 6
+        },
+        {
+          "family": "Solver[max] + Solver[plus] + Verifier[plus]",
+          "edges": 3,
+          "n_active": 3,
+          "count": 5
+        },
+        {
+          "family": "Solver[plus] + Tester[plus]",
+          "edges": 1,
+          "n_active": 2,
+          "count": 5
+        },
+        {
+          "family": "Solver[max] + Solver[plus]",
+          "edges": 2,
+          "n_active": 2,
+          "count": 4
+        },
+        {
+          "family": "Solver[max] + Solver[plus] + Verifier[max]",
+          "edges": 4,
+          "n_active": 3,
+          "count": 4
+        },
+        {
+          "family": "Solver[flash] + Solver[max] + Solver[plus] + Verifier[plus]",
+          "edges": 8,
+          "n_active": 4,
+          "count": 4
+        },
+        {
+          "family": "Solver[max] + Solver[max] + Solver[plus] + Verifier[plus]",
+          "edges": 9,
+          "n_active": 4,
+          "count": 4
+        },
+        {
+          "family": "Solver[max] + Solver[max] + Solver[plus] + Solver[plus]",
+          "edges": 8,
+          "n_active": 4,
+          "count": 4
+        }
+      ]
+    },
+    "math_bonus_fixed": {
+      "steps": 450,
+      "last_step": 449,
+      "correct_rate_last20": 0.7084735602140426,
+      "correct_rate_last5": 0.7120192408561706,
+      "n_calls_last20": 7.464302897453308,
+      "n_calls_last5": 7.172836589813232,
+      "n_active_last20": 3.5367788434028626,
+      "api_total": 1,
+      "api_last20": 0,
+      "eng_invalid_max_last20": 0.0625,
+      "runerr_max_last20": 9,
+      "toolerr_total": 72,
+      "tooltrunc_total": 9,
+      "details_bad_json": 0,
+      "details_lines": 450,
+      "role_share_final30": {
+        "Critic": 0.04791666666666667,
+        "Expert": 0.04017857142857143,
+        "Planner": 0.01875,
+        "Refiner": 0.16845238095238096,
+        "Researcher": 0.028125,
+        "Solver": 0.4767857142857143,
+        "Tester": 0.05967261904761905,
+        "Verifier": 0.1601190476190476
+      },
+      "model_share_final30": {
+        "flash": 0.19107142857142856,
+        "max": 0.4063988095238095,
+        "plus": 0.4025297619047619
+      },
+      "n_active_share_final30": {
+        "1": 0.011075949367088608,
+        "2": 0.11867088607594936,
+        "3": 0.3512658227848101,
+        "4": 0.3633966244725738,
+        "5": 0.145042194092827,
+        "6": 0.010548523206751054
+      },
+      "edge_share_final30": {
+        "0": 0.02267932489451477,
+        "1": 0.020569620253164556,
+        "10": 0.029535864978902954,
+        "11": 0.013185654008438819,
+        "12": 0.0290084388185654,
+        "13": 0.03850210970464135,
+        "14": 0.03691983122362869,
+        "15": 0.014767932489451477,
+        "16": 0.003691983122362869,
+        "17": 0.002109704641350211,
+        "18": 0.002109704641350211,
+        "19": 0.0015822784810126582,
+        "2": 0.10284810126582279,
+        "20": 0.0015822784810126582,
+        "21": 0.0010548523206751054,
+        "22": 0.0010548523206751054,
+        "23": 0.0005274261603375527,
+        "3": 0.05643459915611814,
+        "4": 0.17563291139240506,
+        "5": 0.11286919831223628,
+        "6": 0.05010548523206751,
+        "7": 0.08860759493670886,
+        "8": 0.10073839662447258,
+        "9": 0.0938818565400844
+      },
+      "role_model_counts_final30": {
+        "Solver|max": 1328,
+        "Solver|plus": 1353,
+        "Verifier|max": 451,
+        "Refiner|flash": 295,
+        "Researcher|flash": 39,
+        "Verifier|plus": 406,
+        "Tester|max": 170,
+        "Refiner|max": 442,
+        "Verifier|flash": 219,
+        "Refiner|plus": 395,
+        "Solver|flash": 523,
+        "Tester|plus": 162,
+        "Tester|flash": 69,
+        "Planner|plus": 54,
+        "Expert|max": 103,
+        "Critic|plus": 128,
+        "Expert|plus": 124,
+        "Critic|max": 120,
+        "Researcher|max": 67,
+        "Expert|flash": 43,
+        "Planner|max": 50,
+        "Planner|flash": 22,
+        "Critic|flash": 74,
+        "Researcher|plus": 83
+      },
+      "top_arch_families_final30": [
+        {
+          "family": "Solver[max] + Solver[plus]",
+          "edges": 2,
+          "n_active": 2,
+          "count": 28
+        },
+        {
+          "family": "Solver[max] + Solver[max]",
+          "edges": 2,
+          "n_active": 2,
+          "count": 15
+        },
+        {
+          "family": "Solver[plus] + Solver[plus]",
+          "edges": 2,
+          "n_active": 2,
+          "count": 14
+        },
+        {
+          "family": "Refiner[max] + Solver[max] + Solver[plus]",
+          "edges": 4,
+          "n_active": 3,
+          "count": 12
+        },
+        {
+          "family": "Solver[max] + Solver[plus] + Verifier[max]",
+          "edges": 4,
+          "n_active": 3,
+          "count": 10
+        },
+        {
+          "family": "Refiner[max] + Solver[max] + Solver[plus]",
+          "edges": 5,
+          "n_active": 3,
+          "count": 9
+        },
+        {
+          "family": "Expert[plus] + Solver[max]",
+          "edges": 2,
+          "n_active": 2,
+          "count": 8
+        },
+        {
+          "family": "Solver[flash] + Solver[max]",
+          "edges": 2,
+          "n_active": 2,
+          "count": 8
+        },
+        {
+          "family": "Solver[max] + Solver[max] + Solver[plus]",
+          "edges": 4,
+          "n_active": 3,
+          "count": 8
+        },
+        {
+          "family": "Refiner[flash] + Solver[max] + Solver[plus]",
+          "edges": 4,
+          "n_active": 3,
+          "count": 7
+        },
+        {
+          "family": "Solver[max] + Tester[max]",
+          "edges": 2,
+          "n_active": 2,
+          "count": 7
+        },
+        {
+          "family": "Solver[flash] + Solver[plus]",
+          "edges": 2,
+          "n_active": 2,
+          "count": 7
+        }
+      ]
+    },
+    "reasoning_nobonus": {
+      "steps": 450,
+      "last_step": 449,
+      "correct_rate_last20": 0.704352679848671,
+      "correct_rate_last5": 0.7111607193946838,
+      "n_calls_last20": 6.63392858505249,
+      "n_calls_last5": 6.804464340209961,
+      "n_active_last20": 3.98515625,
+      "api_total": 0,
+      "api_last20": 0,
+      "eng_invalid_max_last20": 0.0,
+      "runerr_max_last20": 5,
+      "toolerr_total": 3,
+      "tooltrunc_total": 2,
+      "details_bad_json": 0,
+      "details_lines": 450,
+      "role_share_final30": {
+        "Critic": 0.0539463194259899,
+        "Expert": 0.08676587828859952,
+        "Planner": 0.024315705554079192,
+        "Refiner": 0.14788732394366197,
+        "Researcher": 0.03494552218974223,
+        "Solver": 0.398485251129418,
+        "Tester": 0.06484188147754451,
+        "Verifier": 0.18881211799096465
+      },
+      "model_share_final30": {
+        "flash": 0.32673398883869254,
+        "max": 0.16130746744618654,
+        "plus": 0.511958543715121
+      },
+      "n_active_share_final30": {
+        "1": 0.005252100840336135,
+        "2": 0.05672268907563025,
+        "3": 0.2510504201680672,
+        "4": 0.4012605042016807,
+        "5": 0.23844537815126052,
+        "6": 0.04726890756302521
+      },
+      "edge_share_final30": {
+        "0": 0.04726890756302521,
+        "1": 0.1790966386554622,
+        "10": 0.06932773109243698,
+        "11": 0.044642857142857144,
+        "12": 0.03991596638655462,
+        "13": 0.022058823529411766,
+        "14": 0.0010504201680672268,
+        "15": 0.0010504201680672268,
+        "16": 0.0026260504201680674,
+        "17": 0.005252100840336135,
+        "18": 0.01050420168067227,
+        "19": 0.018907563025210083,
+        "2": 0.046218487394957986,
+        "20": 0.009978991596638655,
+        "21": 0.0015756302521008404,
+        "22": 0.0005252100840336134,
+        "3": 0.0273109243697479,
+        "4": 0.22531512605042017,
+        "5": 0.10031512605042017,
+        "6": 0.03046218487394958,
+        "7": 0.04044117647058824,
+        "8": 0.018907563025210083,
+        "9": 0.05724789915966386
+      },
+      "role_model_counts_final30": {
+        "Verifier|plus": 743,
+        "Verifier|max": 308,
+        "Tester|plus": 236,
+        "Solver|flash": 1082,
+        "Verifier|flash": 370,
+        "Researcher|plus": 130,
+        "Solver|plus": 1604,
+        "Expert|flash": 253,
+        "Expert|plus": 330,
+        "Solver|max": 313,
+        "Critic|plus": 185,
+        "Refiner|flash": 297,
+        "Refiner|plus": 537,
+        "Planner|plus": 88,
+        "Researcher|flash": 92,
+        "Refiner|max": 279,
+        "Tester|flash": 162,
+        "Planner|flash": 59,
+        "Critic|flash": 144,
+        "Critic|max": 77,
+        "Expert|max": 70,
+        "Tester|max": 90,
+        "Planner|max": 36,
+        "Researcher|max": 41
+      },
+      "top_arch_families_final30": [
+        {
+          "family": "Solver[flash] + Solver[plus] + Verifier[plus]",
+          "edges": 1,
+          "n_active": 3,
+          "count": 17
+        },
+        {
+          "family": "Solver[flash] + Solver[plus]",
+          "edges": 0,
+          "n_active": 2,
+          "count": 10
+        },
+        {
+          "family": "Solver[flash] + Solver[plus] + Solver[plus]",
+          "edges": 1,
+          "n_active": 3,
+          "count": 10
+        },
+        {
+          "family": "Solver[flash] + Solver[max] + Solver[plus]",
+          "edges": 1,
+          "n_active": 3,
+          "count": 8
+        },
+        {
+          "family": "Solver[flash] + Solver[flash] + Solver[plus]",
+          "edges": 1,
+          "n_active": 3,
+          "count": 7
+        },
+        {
+          "family": "Solver[plus] + Solver[plus]",
+          "edges": 0,
+          "n_active": 2,
+          "count": 7
+        },
+        {
+          "family": "Refiner[flash] + Solver[flash] + Solver[plus]",
+          "edges": 1,
+          "n_active": 3,
+          "count": 6
+        },
+        {
+          "family": "Solver[flash] + Solver[flash]",
+          "edges": 0,
+          "n_active": 2,
+          "count": 6
+        },
+        {
+          "family": "Refiner[plus] + Solver[flash] + Solver[plus]",
+          "edges": 1,
+          "n_active": 3,
+          "count": 5
+        },
+        {
+          "family": "Solver[plus] + Solver[plus] + Solver[plus]",
+          "edges": 1,
+          "n_active": 3,
+          "count": 5
+        },
+        {
+          "family": "Refiner[max] + Solver[flash] + Solver[plus] + Solver[plus]",
+          "edges": 4,
+          "n_active": 4,
+          "count": 5
+        },
+        {
+          "family": "Solver[flash] + Solver[plus] + Verifier[flash] + Verifier[plus]",
+          "edges": 4,
+          "n_active": 4,
+          "count": 5
+        }
+      ]
+    },
+    "reasoning_bonus_fixed": {
+      "steps": 450,
+      "last_step": 449,
+      "correct_rate_last20": 0.7327008932828903,
+      "correct_rate_last5": 0.7651785731315612,
+      "n_calls_last20": 4.547767877578735,
+      "n_calls_last5": 4.534821510314941,
+      "n_active_last20": 2.9074776768684387,
+      "api_total": 7,
+      "api_last20": 0,
+      "eng_invalid_max_last20": 0.015625,
+      "runerr_max_last20": 3,
+      "toolerr_total": 0,
+      "tooltrunc_total": 0,
+      "details_bad_json": 0,
+      "details_lines": 458,
+      "role_share_final30": {
+        "Critic": 0.017847485127095726,
+        "Expert": 0.0072111051018568595,
+        "Planner": 0.0019830539030106366,
+        "Refiner": 0.15143320713899405,
+        "Researcher": 0.005047773571299802,
+        "Solver": 0.6843338741662159,
+        "Tester": 0.012439156300703082,
+        "Verifier": 0.11970434469082387
+      },
+      "model_share_final30": {
+        "flash": 0.15630070308274743,
+        "max": 0.11880295655309177,
+        "plus": 0.7248963403641608
+      },
+      "n_active_share_final30": {
+        "1": 0.012605042016806723,
+        "2": 0.31039915966386555,
+        "3": 0.4532563025210084,
+        "4": 0.19905462184873948,
+        "5": 0.02415966386554622,
+        "6": 0.0005252100840336134
+      },
+      "edge_share_final30": {
+        "0": 0.012605042016806723,
+        "1": 0.29989495798319327,
+        "10": 0.08771008403361344,
+        "11": 0.030987394957983194,
+        "16": 0.0005252100840336134,
+        "17": 0.022058823529411766,
+        "18": 0.0010504201680672268,
+        "19": 0.0005252100840336134,
+        "2": 0.01050420168067227,
+        "27": 0.0005252100840336134,
+        "3": 0.0010504201680672268,
+        "4": 0.2762605042016807,
+        "5": 0.17069327731092437,
+        "6": 0.005252100840336135,
+        "8": 0.0010504201680672268,
+        "9": 0.07930672268907563
+      },
+      "role_model_counts_final30": {
+        "Solver|plus": 3300,
+        "Critic|plus": 54,
+        "Verifier|plus": 285,
+        "Refiner|flash": 315,
+        "Refiner|plus": 291,
+        "Solver|flash": 296,
+        "Solver|max": 200,
+        "Verifier|flash": 208,
+        "Verifier|max": 171,
+        "Refiner|max": 234,
+        "Planner|max": 5,
+        "Tester|plus": 40,
+        "Critic|max": 24,
+        "Researcher|plus": 19,
+        "Expert|max": 4,
+        "Critic|flash": 21,
+        "Expert|plus": 28,
+        "Tester|flash": 13,
+        "Tester|max": 16,
+        "Researcher|max": 5,
+        "Planner|flash": 2,
+        "Researcher|flash": 4,
+        "Expert|flash": 8,
+        "Planner|plus": 4
+      },
+      "top_arch_families_final30": [
+        {
+          "family": "Solver[plus] + Solver[plus]",
+          "edges": 1,
+          "n_active": 2,
+          "count": 405
+        },
+        {
+          "family": "Solver[flash] + Solver[plus]",
+          "edges": 1,
+          "n_active": 2,
+          "count": 60
+        },
+        {
+          "family": "Solver[plus] + Solver[plus] + Verifier[flash]",
+          "edges": 4,
+          "n_active": 3,
+          "count": 59
+        },
+        {
+          "family": "Solver[plus] + Solver[plus] + Verifier[plus]",
+          "edges": 4,
+          "n_active": 3,
+          "count": 52
+        },
+        {
+          "family": "Solver[plus] + Solver[plus] + Verifier[max]",
+          "edges": 4,
+          "n_active": 3,
+          "count": 50
+        },
+        {
+          "family": "Refiner[max] + Solver[plus] + Solver[plus]",
+          "edges": 4,
+          "n_active": 3,
+          "count": 49
+        },
+        {
+          "family": "Refiner[plus] + Solver[plus] + Solver[plus]",
+          "edges": 5,
+          "n_active": 3,
+          "count": 48
+        },
+        {
+          "family": "Refiner[plus] + Solver[plus] + Solver[plus]",
+          "edges": 4,
+          "n_active": 3,
+          "count": 47
+        },
+        {
+          "family": "Refiner[flash] + Solver[plus] + Solver[plus]",
+          "edges": 4,
+          "n_active": 3,
+          "count": 46
+        },
+        {
+          "family": "Solver[max] + Solver[plus]",
+          "edges": 1,
+          "n_active": 2,
+          "count": 44
+        },
+        {
+          "family": "Refiner[flash] + Solver[plus] + Solver[plus]",
+          "edges": 5,
+          "n_active": 3,
+          "count": 41
+        },
+        {
+          "family": "Refiner[max] + Solver[plus] + Solver[plus]",
+          "edges": 5,
+          "n_active": 3,
+          "count": 34
+        }
+      ]
+    }
+  }
+}

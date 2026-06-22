@@ -166,7 +166,7 @@ def main() -> int:
                          "correct sub-group, cheapest gets +scale on top of "
                          "the +1 base, most expensive gets +0. Defaults to "
                          "0.5 → correct ∈ [+1, +1.5] vs wrong = -1 (before /σ): "
-                         "cost is a light tiebreak, correctness stays dominant.")
+                         "cost is a light tiebreak relative to correctness.")
     ap.add_argument("--max_seq_len", type=int, default=1024,
                     help="Max tokens for the head's tokenizer "
                          "(TrainSpec.tokenizer_max_len). 1024 covers "
@@ -336,7 +336,7 @@ def main() -> int:
         #   Agent 60%: BrowseComp 30% + HLE 30%        (unsaturated)
         #   STEM  30%: GPQA-Diamond 15% + PHYBench 10% + MATH-500-L5 5%
         #   Code  10%: LiveCodeBench Hard 10%
-        # Target SOTA ≈ 40-50% across sources (sweet spot for RL signal).
+        # Target source difficulty around 40-50% pass rate.
         # Scales with --n; n=1000 gives the exact percentages above.
         n = args.n
         composition = {
@@ -462,7 +462,7 @@ def main() -> int:
     # Cross-cutting LR sanity: full-FT 4B params + LLM-default lr=2e-5
     # is too hot for RL (typical full-FT-RL lr 5e-6 ~ 1e-5). LoRA-RL or
     # heads-only-RL @ 2e-5 is fine — those have far fewer trainable
-    # params and the lr is well within the LoRA-RL sweet spot. The
+    # params and the lr is set for the LoRA-RL configuration. The
     # from-scratch WARN above catches the easy case; this catches the
     # `warm-start + full-FT` corner the original WARN missed.
     if (args.lora_rank == 0 and not args.freeze_backbone

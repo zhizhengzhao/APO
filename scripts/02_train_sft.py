@@ -70,7 +70,7 @@ def parse_args() -> argparse.Namespace:
                     help="SFT architectural prior. `bench`: the per-bench "
                          "curated pool (pool_ratio forced 1.0). `full`: the "
                          "comprehensive bench-agnostic `full_library` with the "
-                         "default 2-tier sampler — recommended so one broad "
+                         "default 2-tier sampler — one broad "
                          "prior serves every benchmark.")
     ap.add_argument("--epochs", type=int, default=TRAIN.sft_epochs)
     ap.add_argument("--batch_size", type=int, default=TRAIN.sft_batch_size)
@@ -125,7 +125,7 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--no_random_on_demand", action="store_true",
                     help="Use the legacy 10 pre-generated random archs "
                          "(reused every epoch) instead of true on-demand "
-                         "random. Off by default — on-demand is the recommended "
+                         "random. Off by default — on-demand is the default "
                          "regulariser.")
     ap.add_argument("--legacy_tier_ratio", type=float, nargs=3, default=None,
                     metavar=("CANONICAL", "IMPERFECT", "RANDOM"),

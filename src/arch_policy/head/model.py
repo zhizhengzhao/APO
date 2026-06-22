@@ -16,7 +16,7 @@ where Q = softmax(role_logits). All 4 heads share U.
 
 Trainability modes (set via `freeze_backbone` + `lora_rank`):
 
-  - lora_rank > 0           → LoRA on backbone + full heads (recommended; 24GB+)
+  - lora_rank > 0           → LoRA on backbone + full heads (24GB+)
   - freeze_backbone=True    → heads only (~1M trainable params)
   - both False              → full backbone FT (needs gradient_checkpointing
                               on a single 80GB card for ≥4B backbones)

@@ -104,7 +104,7 @@ def grpo_step(
       C) `inject_family_stratified=True` + `inject_k`: per-step sample
          `inject_k` DISTINCT canonical families uniformly, then 1 variant
          from each. Equalizes BC pressure across all 42 canonical families.
-         Recommended default.
+         Default used in the released scripts.
 
     In all modes gradient flows through log_pi(arch) at the CURRENT head
     logits, so the head learns from injected archs even when its own
@@ -799,7 +799,7 @@ def train_grpo(
       - `inject_archs`: fixed list, same K every step (mode A).
       - `inject_pool` + `inject_k`: pool, uniform sample K per step (mode B).
       - `inject_family_stratified=True` + `inject_k`: pick K distinct
-        canonical families uniformly then 1 variant each (recommended).
+        canonical families uniformly then 1 variant each (used in the released scripts).
     See `grpo_step` for the math.
 
     `inject_seed`: optional seed for the per-step inject sampler.

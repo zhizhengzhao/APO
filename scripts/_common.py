@@ -63,13 +63,13 @@ def build_worker(args):
 # Per-model in-flight caps for the 3-tier single-vendor Qwen pool
 # (flash/plus/max, all via one DashScope key). Probed 2026-06-03: each
 # tier alone is clean to ~128, but the THREE share ONE account quota whose
-# clean band is ~128 total in-flight (192→p50 7s, 384→p50 17s — accepted,
+# measured band is ~128 total in-flight (192→p50 7s, 384→p50 17s — accepted,
 # no 429). So the caps SUM to ~128 to stay in the <1s band; the per-model
 # semaphore makes excess calls WAIT, not fail, so reward reflects model
 # quality not throttling luck.
 MODEL_CONCURRENCY = {
     # Halved (24/20/20 = 64/process) because we run TWO trainings at once
-    # sharing one DashScope key whose clean band is ~128 total in-flight;
+    # sharing one DashScope key whose measured band is ~128 total in-flight;
     # two processes => combined ~48/40/40 = 128, staying in the <1s band.
     "qwen3.6-flash": 24,
     "qwen3.6-plus": 20,

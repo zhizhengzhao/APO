@@ -98,7 +98,7 @@ def test_C2_concurrency_limited_worker_caps_inflight():
 
 
 def test_C2_build_worker_pool_applies_per_model_caps(monkeypatch):
-    """build_worker_pool wraps each model at its clean-concurrency cap."""
+    """build_worker_pool wraps each model at its configured per-process cap."""
     import sys, pathlib
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scripts"))
     import _common
@@ -112,10 +112,10 @@ def test_C2_build_worker_pool_applies_per_model_caps(monkeypatch):
     pool = _common.build_worker_pool(
         ("qwen3.7-max", "glm-5.1", "deepseek-v4-pro", "unknown-x"),
         timeout=60, temperature=0.0, thinking=False)
-    assert pool["qwen3.7-max"].max_concurrency == 128
-    assert pool["glm-5.1"].max_concurrency == 50
-    assert pool["deepseek-v4-pro"].max_concurrency == 32
-    assert pool["unknown-x"].max_concurrency == 32  # conservative default
+    assert pool["qwen3.7-max"].max_concurrency == 20
+    assert pool["glm-5.1"].max_concurrency == 16
+    assert pool["deepseek-v4-pro"].max_concurrency == 16
+    assert pool["unknown-x"].max_concurrency == 16
 
 
 # ---------------------------------------------------------------------------

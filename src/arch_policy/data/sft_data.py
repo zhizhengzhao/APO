@@ -3,7 +3,7 @@
 By design, no task→architecture grounding: the head learns to live in
 the manifold of reasonable architectures without locking task→template.
 
-Default sampling (recommended, May 2026 redesign):
+Default sampling:
 
   - 85% draws from the *closed* SFT pool = canonical (82) + imperfect (15)
     = 97 hand-designed archs. Internal distribution: **uniform over the
@@ -58,7 +58,7 @@ class SFTSample:
 class SFTArchDataset(Dataset):
     """Each `__getitem__` returns one (task, randomly-paired ArchTargets).
 
-    Default 2-tier sampler:
+    2-tier sampler:
       - `pool_ratio` (default 0.85) of draws → uniform over the closed
         SFT pool (canonical + imperfect, 97 entries).
       - `1 - pool_ratio` (default 0.15) of draws → true on-demand random

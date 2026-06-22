@@ -124,8 +124,8 @@ def test_sft_loss_components_finite():
     comp = sft_loss_single(logits, target)
     for k, v in comp.items():
         assert torch.isfinite(v), f"{k} not finite: {v}"
-    # 4-loss design: total + 4 components, no model/synth
-    assert set(comp.keys()) == {"gate", "role", "edge", "seq", "total"}
+    # Typed losses: 4 topology components plus the model-uniform loss.
+    assert set(comp.keys()) == {"gate", "role", "edge", "seq", "model", "total"}
 
 
 def test_dummy_sft_step_decreases_loss():

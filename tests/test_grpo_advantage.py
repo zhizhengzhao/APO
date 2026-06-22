@@ -87,8 +87,11 @@ def test_mixed_lexicographic_ordering():
 
 
 def test_all_correct_varied_cost_all_positive():
-    """All correct with distinct n_calls: raw ∈ [1, 2], σ > 0, /σ preserves
-    sign. Every sample positive; cheapest > most expensive."""
+    """All correct emits no gradient, even when costs differ.
+
+    Cost is a tie-break only inside mixed groups; an all-correct group carries
+    no correctness signal and should not push architecture probabilities.
+    """
     G, B = 16, 1
     correct = torch.ones(G, B)
     n_calls = torch.tensor([
@@ -96,12 +99,7 @@ def test_all_correct_varied_cost_all_positive():
         [4.], [5.], [6.], [8.], [10.], [11.], [9.], [7.],
     ])
     adv = shaped_advantage(correct, n_calls, cost_bonus_scale=1.0)
-    # All positive (raw was all in [1, 2] > 0, /σ preserves sign)
-    assert (adv > 0).all(), f"all-correct adv should be all positive; got {adv}"
-    # Cheapest cn=3 (g=0) → max raw = +2 → max adv after /σ
-    assert adv[0, 0] == adv[:, 0].max()
-    # Most expensive cn=12 (g=4) → min raw = +1 → min adv after /σ
-    assert adv[4, 0] == adv[:, 0].min()
+    assert torch.allclose(adv, torch.zeros_like(adv)), f"expected zeros, got {adv}"
 
 
 def test_all_correct_same_calls_fires_sigma_zero_zero():
@@ -116,20 +114,17 @@ def test_all_correct_same_calls_fires_sigma_zero_zero():
 
 
 def test_per_task_independence():
-    """Two tasks in the same batch are processed independently. Different
-    σ → different normalized magnitudes; doesn't leak across."""
+    """Two tasks in the same batch are processed independently."""
     G = 4
     # task 0: all wrong → -0.1 fallback
-    # task 1: all correct, varied cost → /σ-normalized positives
+    # task 1: all correct, varied cost → zero (no correctness signal)
     correct = torch.tensor([[0., 1.], [0., 1.], [0., 1.], [0., 1.]])
     n_calls = torch.tensor([[5., 3.], [5., 4.], [5., 5.], [5., 6.]])
     adv = shaped_advantage(correct, n_calls, cost_bonus_scale=1.0)
     # task 0 (all wrong) → -0.1 uniform
     assert torch.allclose(adv[:, 0], torch.full((G,), -0.1))
-    # task 1 (all correct, distinct cost) → all positive, cheapest highest
-    assert (adv[:, 1] > 0).all()
-    assert adv[0, 1] == adv[:, 1].max()  # cn=3, cheapest
-    assert adv[3, 1] == adv[:, 1].min()  # cn=6, most expensive
+    # task 1 (all correct, distinct cost) → zero, independent of task 0
+    assert torch.allclose(adv[:, 1], torch.zeros(G))
 
 
 def test_g_equals_1_degenerate_safe():

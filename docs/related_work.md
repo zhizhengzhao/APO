@@ -96,7 +96,7 @@
 | **Graph-GRPO** | × | × | **edge GRPO** | × | × | edge-level GRPO |
 | **APO (ours)** | **gate Bern** | **role Cat (8)** | **latent + SBM** | **PL** | **ReAct + tools** | **shaped-advantage GRPO** |
 
-最值得直接对比的是 Graph-GRPO（2026 SOTA），算法路线最像（都是 GRPO）。一点关键差异：
+可直接对比的相关工作包括 Graph-GRPO（2026），其算法路线同样使用 GRPO。差异点：
 
 - Scope: Graph-GRPO 只学 edge (N×N)。APO 学 gates + roles + edges + seq。
 

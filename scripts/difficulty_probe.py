@@ -307,7 +307,7 @@ def main() -> int:
     ap.add_argument("--wall", type=float, default=240.0)
     ap.add_argument("--inflight", type=int, default=0,
                     help="total in-flight API cap across the 3 tiers (solo "
-                         "probe can use the full ~110 clean band; 0=keep the "
+                         "probe can use the full ~110 measured band; 0=keep the "
                          "training-shared 64 default in _common.MODEL_CONCURRENCY)")
     ap.add_argument("--worker_timeout", type=float, default=600.0)
     ap.add_argument("--judge_timeout", type=float, default=180.0)

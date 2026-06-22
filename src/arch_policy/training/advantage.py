@@ -30,7 +30,7 @@ def shaped_advantage(
       wrong   → -1
       correct → 1 + bonus, where bonus ∈ [0, cost_bonus_scale]
                 via min-max on n_calls within the correct sub-group:
-                  cheapest correct → bonus = cost_bonus_scale (best)
+                  cheapest correct → bonus = cost_bonus_scale
                   most expensive    → bonus = 0
                   single correct OR all correct same cost
                                     → bonus = cost_bonus_scale (no rivals)
@@ -40,12 +40,9 @@ def shaped_advantage(
     group's correctness composition (NOT by σ — see below):
       all correct (n_correct == n_valid) → adv = 0 uniform
             Architecture choice does not change correctness on this task, so it
-            carries NO accuracy signal. Earlier we let σ>0 (from a cost spread
-            inside the all-correct group) drive adv = raw/σ, which produced a
-            LARGE cost gradient (|adv| up to ~8) that dominated and ERODED
-            accuracy on sparse-signal categories (e.g. knowledge). Cost is now
-            shaped ONLY inside mixed groups' correct samples, so it can never
-            outvote the accuracy signal. (User-requested fix, Jun 2026.)
+            carries NO accuracy signal. Emitting no gradient prevents a cost
+            spread inside an all-correct group from driving adv = raw/σ with
+            large magnitude; cost shaping lives exclusively inside mixed groups.
       all wrong (n_correct == 0)         → adv = -0.1 uniform  (mild push off
             these architectures so entropy can explore elsewhere)
       mixed (0 < n_correct < n_valid)    → adv = raw / σ
@@ -99,9 +96,8 @@ def shaped_advantage(
 
         # ---- Tier 2: gate by correctness composition, NOT by σ ----
         # all-correct groups carry no accuracy signal and must NOT emit a cost
-        # gradient (that previously dominated sparse-signal categories), so they
-        # are zeroed even when a cost spread makes σ>0. Only mixed groups get
-        # /σ; cost shaping therefore lives exclusively inside mixed groups.
+        # gradient; only mixed groups get /σ normalization. Cost shaping
+        # therefore lives exclusively inside mixed groups.
         if n_correct == n_valid:                      # all correct → no signal
             adv_b = torch.zeros((G,), device=correct.device, dtype=torch.float32)
         elif n_correct == 0:                          # all wrong → mild push
@@ -111,8 +107,8 @@ def shaped_advantage(
             raw_valid = raw[valid_b]
             sigma = raw_valid.std(unbiased=False)
             if sigma < 1e-9:
-                # Degenerate mixed (shouldn't happen: correct=+1+bonus differs
-                # from wrong=-1), but guard against it → no gradient.
+                # Degenerate mixed (should not occur because correct raw differs
+                # from wrong raw), but guard against it.
                 adv_b = torch.zeros((G,), device=correct.device,
                                     dtype=torch.float32)
             else:

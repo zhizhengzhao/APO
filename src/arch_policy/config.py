@@ -76,7 +76,7 @@ class TrainSpec:
     # selection units for picking which weight to push to GRPO.
     sft_epochs: int = 3            # production: 3 (prefer GRPO depth over SFT)
     # LR is auto-picked by scripts/02_train_sft.py if --lr unset:
-    #   LoRA → 1e-4 (recommended), frozen-head → 5e-5, full FT → 1e-5.
+    #   LoRA → 1e-4, frozen-head → 5e-5, full FT → 1e-5.
     sft_lr: float = 1e-5
     sft_batch_size: int = 8
     sft_grad_accum: int = 2
@@ -113,7 +113,7 @@ class TrainSpec:
     # the cheapest correct sample gets +scale bonus on top of the +1 base,
     # the most expensive correct gets +0. Wrong samples ignore n_calls.
     # scale=0.5 means correct ∈ [+1, +1.5] vs wrong = -1 (before /σ): cost is
-    # a light tiebreak, correctness stays clearly dominant. (Was 1.0; lowered
+    # a light tiebreak relative to correctness. (Was 1.0; lowered
     # 2026-06-04 to compress n_calls' influence while keeping the wrong-push
     # symmetric — see the /σ-no-mean-subtract design in advantage.py.)
     advantage_cost_bonus_scale: float = 0.5

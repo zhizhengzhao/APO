@@ -2,15 +2,16 @@
 # Launch one task-category GRPO run from the shared SFT warm-start.
 #
 # Usage:
-#   run_cat_rl.sh <cat> <gpu> <max_new_tokens> <max_seq_len> [epochs]
-#   e.g.  run_cat_rl.sh cat_code 0 8192 4096 18
+#   run_cat_rl.sh <cat> <gpu> <max_new_tokens> <max_seq_len> [epochs] [cost_bonus_scale]
+#   e.g.  run_cat_rl.sh cat_code 0 8192 4096 18 0.5
 #
 # Paths are taken from the environment (no hardcoded machine paths):
 #   SFT_CKPT  : shared SFT warm-start head dir       (default: checkpoints/sft_shared/head_final)
 #   OUT_ROOT  : where per-category run dirs are written (default: runs)
 #
 # Hyperparameters match the released runs: G=4, batch=16, lr=3e-5, 18 epochs,
-# Qwen 3-tier pool (flash/plus/max, thinking OFF), cost_bonus_scale=0.5.
+# Qwen 3-tier pool (flash/plus/max, thinking OFF). The last argument selects
+# the reward variant: 0.0 = no-bonus, 0.5 = bonus-fixed.
 set -eo pipefail
 
 CAT=${1:?usage: run_cat_rl.sh <cat> <gpu> <mnt> <seq> [epochs]}
@@ -18,6 +19,7 @@ GPU=${2:?need GPU id}
 MNT=${3:-8192}
 SEQ=${4:-4096}
 EPOCHS=${5:-18}
+BONUS=${6:-0.5}
 
 SFT_CKPT=${SFT_CKPT:-checkpoints/sft_shared/head_final}
 OUT_ROOT=${OUT_ROOT:-runs}
@@ -28,7 +30,8 @@ export CUDA_VISIBLE_DEVICES=$GPU
 # Math leans on heavy symbolic compute (sympy); give python_exec more wall time.
 if [ "$CAT" = "cat_math" ]; then export ARCH_PYTHON_TIMEOUT_S=120; fi
 
-OUT="$OUT_ROOT/${CAT}/grpo_${CAT}_v2"
+TAG=${RUN_TAG:-grpo_${CAT}_bonus_${BONUS}}
+OUT="$OUT_ROOT/${CAT}/${TAG}"
 mkdir -p "$OUT"
 
 exec python3 scripts/03_train_grpo.py \
@@ -39,7 +42,7 @@ exec python3 scripts/03_train_grpo.py \
   --worker_models qwen3.6-flash,qwen3.6-plus,qwen3.7-max \
   --worker_temperature 0.6 --worker_timeout 600 \
   --judge qwen --judge_model qwen3.7-max --judge_timeout 180 \
-  --batch_size 16 --G 4 --epochs "$EPOCHS" --lr 3e-5 --cost_bonus_scale 0.5 \
+  --batch_size 16 --G 4 --epochs "$EPOCHS" --lr 3e-5 --cost_bonus_scale "$BONUS" \
   --max_seq_len "$SEQ" --max_new_tokens "$MNT" \
   --max_concurrent_runs 64 --safety_max_cycles 8 --safety_max_steps 16 \
   --wall_clock_timeout_s 400 --max_llm_calls_per_trace 32 \

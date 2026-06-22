@@ -16,7 +16,7 @@ Calibration note (verify after any change to ArchSpec / weights):
   Typical |advantage × log_pi| per sample is order 10-30, so the
   default `grpo_entropy_weight = 1.0` gives an entropy contribution
   of ~0.1% of the policy-gradient loss. This is a *soft* regularizer
-  by design, not a dominant signal. If you observe entropy collapse
+  by design, not the main signal. If entropy collapses
   on a real run and want a stronger anti-collapse force, scale
   `--entropy_weight` to 30-100 (or rescale `DEFAULT_ENTROPY_WEIGHTS`).
 """
