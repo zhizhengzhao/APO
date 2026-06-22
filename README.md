@@ -11,13 +11,13 @@ All runs use the same SFT warm-start, role prompts, model pool, budgets, hyperpa
 - `nobonus`: `cost_bonus_scale=0`; correctness only (plus the all-wrong mild push).
 - `bonus_fixed`: `cost_bonus_scale=0.5`; cost bonus applies only within mixed groups, and all-correct groups emit zero advantage.
 
-Values below are means over the final 20 training steps. They are on-policy training statistics, not held-out evaluation results.
+Values below are means over epoch 18 (steps 425-449). They are on-policy training statistics, not held-out evaluation results.
 
 | Category | no-bonus correct | no-bonus calls | bonus-fixed correct | bonus-fixed calls |
 |---|---:|---:|---:|---:|
-| code | 0.821 | 9.02 | 0.822 | 7.51 |
-| math | 0.725 | 8.30 | 0.708 | 7.46 |
-| reasoning | 0.704 | 6.63 | 0.733 | 4.55 |
+| code | 0.832 | 8.99 | 0.829 | 7.52 |
+| math | 0.724 | 8.39 | 0.712 | 7.59 |
+| reasoning | 0.708 | 6.66 | 0.740 | 4.59 |
 
 Final-30 model share (flash / plus / max):
 
